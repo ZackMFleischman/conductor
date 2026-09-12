@@ -54,7 +54,7 @@ type ticketReader interface {
 
 func readTicket(ctx context.Context, c ticketReader, p, id string) (TicketRecord, error) {
 	var v TicketRecord
-	e := c.QueryRowContext(ctx, `SELECT id,project_id,display_key,title,body,state,revision,assigned_agent_id,summary,evidence,qa,created_at,updated_at FROM tickets WHERE project_id=? AND (id=? OR display_key=?) ORDER BY CASE WHEN id=? THEN 0 ELSE 1 END LIMIT 1`, p, id, id, id).Scan(&v.ID, &v.ProjectID, &v.DisplayKey, &v.Title, &v.Body, &v.State, &v.Revision, &v.AssignedAgentID, &v.Summary, &v.Evidence, &v.QA, &v.CreatedAt, &v.UpdatedAt)
+	e := c.QueryRowContext(ctx, `SELECT id,project_id,display_key,title,body,state,revision,assigned_agent_id,summary,evidence,qa,created_at,updated_at,EXISTS(SELECT 1 FROM claims WHERE ticket_id=tickets.id AND released_at IS NULL) FROM tickets WHERE project_id=? AND (id=? OR display_key=?) ORDER BY CASE WHEN id=? THEN 0 ELSE 1 END LIMIT 1`, p, id, id, id).Scan(&v.ID, &v.ProjectID, &v.DisplayKey, &v.Title, &v.Body, &v.State, &v.Revision, &v.AssignedAgentID, &v.Summary, &v.Evidence, &v.QA, &v.CreatedAt, &v.UpdatedAt, &v.Active)
 	if e == sql.ErrNoRows {
 		return v, Fail("NOT_FOUND", "ticket not found")
 	}
@@ -208,6 +208,7 @@ func (s *Service) ticketMutation(ctx context.Context, r store.Request, op string
 					eventBody = in.Body
 				} else {
 					v.State = "ready"
+					v.Active = false
 					eventBody = in.Reason
 					if op == "submit" {
 						v.State = "review"
@@ -227,12 +228,25 @@ func (s *Service) ticketMutation(ctx context.Context, r store.Request, op string
 				v.State = "done"
 				if op == "reject" {
 					v.State = "ready"
+					v.Active = false
 					eventBody = in.Reason
 				}
 			}
 			v.Revision++
 			v.UpdatedAt = Now()
 			_, e = c.ExecContext(ctx, `UPDATE tickets SET state=?,revision=?,assigned_agent_id=?,summary=?,evidence=?,qa=?,updated_at=? WHERE id=?`, v.State, v.Revision, v.AssignedAgentID, v.Summary, v.Evidence, v.QA, v.UpdatedAt, v.ID)
+			if e != nil {
+				return nil, e
+			}
+		}
+		// Session observations are business writes: replay skips this callback and
+		// any later event/journal failure rolls the observation back as well.
+		if in.SessionID != "" {
+			if op == "claim" {
+				_, e = c.ExecContext(ctx, "UPDATE sessions SET last_seen_at=?,worktree_root=?,branch=?,head=? WHERE project_id=? AND id=?", Now(), in.Location.Root, in.Location.Branch, in.Location.Head, in.ProjectID, in.SessionID)
+			} else {
+				_, e = c.ExecContext(ctx, "UPDATE sessions SET last_seen_at=? WHERE project_id=? AND id=?", Now(), in.ProjectID, in.SessionID)
+			}
 			if e != nil {
 				return nil, e
 			}

@@ -209,3 +209,155 @@ func TestTicketInputLimits(t *testing.T) {
 	}
 
 }
+func TestTicketMutationsUpdateSessionContactAtomically(t *testing.T) {
+	ctx := context.Background()
+	st, e := store.Open(filepath.Join(t.TempDir(), "db"), true)
+	if e != nil {
+		t.Fatal(e)
+	}
+	defer st.DB.Close()
+	s := Service{st}
+	g := gitctx.Context{CommonDir: "common", Root: "original", Head: "original-head"}
+	raw, e := s.Init(ctx, g, "APP", "init")
+	if e != nil {
+		t.Fatal(e)
+	}
+	var p Project
+	json.Unmarshal(raw, &p)
+	if _, e = s.RegisterAgent(ctx, p.ID, "dev", "", "", "agent"); e != nil {
+		t.Fatal(e)
+	}
+	raw, e = s.StartSession(ctx, p.ID, "dev", "session", g)
+	if e != nil {
+		t.Fatal(e)
+	}
+	var session Session
+	json.Unmarshal(raw, &session)
+	raw, e = s.CreateTicket(ctx, store.Request{ID: "create"}, TicketInput{ProjectID: p.ID, Title: "test", Body: "body"})
+	if e != nil {
+		t.Fatal(e)
+	}
+	var ticket TicketRecord
+	json.Unmarshal(raw, &ticket)
+	branch := "feature"
+	g.Root = "other-worktree"
+	g.Branch = &branch
+	g.Head = "new-head"
+	in := TicketInput{ProjectID: p.ID, TicketID: ticket.ID, SessionID: session.ID, ExpectedRevision: 1, Location: g}
+	contact := func() Session {
+		t.Helper()
+		v, e := ReadSession(ctx, st.DB, p.ID, session.ID)
+		if e != nil {
+			t.Fatal(e)
+		}
+		return v
+	}
+	prior := session.LastSeenAt
+	raw, e = s.ClaimTicket(ctx, store.Request{ID: "claim"}, in)
+	if e != nil {
+		t.Fatal(e)
+	}
+	json.Unmarshal(raw, &ticket)
+	current := contact()
+	if current.LastSeenAt == prior {
+		t.Error("claim did not update contact")
+	}
+	if current.WorktreeRoot != g.Root || current.Head != g.Head || current.Branch == nil || *current.Branch != branch {
+		t.Errorf("claim did not update session location: %+v", current)
+	}
+	prior = current.LastSeenAt
+	if _, e = s.ClaimTicket(ctx, store.Request{ID: "claim"}, in); e != nil {
+		t.Fatal(e)
+	}
+	if contact().LastSeenAt != prior {
+		t.Error("claim replay changed contact")
+	}
+	in.ClaimID = ticket.ClaimID
+	in.Body = "note"
+	in.ExpectedRevision = 2
+	raw, e = s.NoteTicket(ctx, store.Request{ID: "note"}, in)
+	if e != nil {
+		t.Fatal(e)
+	}
+	json.Unmarshal(raw, &ticket)
+	current = contact()
+	if current.LastSeenAt == prior {
+		t.Error("note did not update contact")
+	}
+	prior = current.LastSeenAt
+	if _, e = s.NoteTicket(ctx, store.Request{ID: "note"}, in); e != nil {
+		t.Fatal(e)
+	}
+	if contact().LastSeenAt != prior {
+		t.Error("note replay changed contact")
+	}
+	in.Summary = "summary"
+	in.Evidence = "evidence"
+	in.QA = "manual QA"
+	in.ExpectedRevision = 2
+	if _, e = s.SubmitTicket(ctx, store.Request{ID: "bad-revision"}, in); e == nil {
+		t.Fatal("expected conflict")
+	}
+	if contact().LastSeenAt != prior {
+		t.Error("failed submit changed contact")
+	}
+	in.ExpectedRevision = 3
+	if _, e = st.DB.Exec(`CREATE TRIGGER fail_submit BEFORE INSERT ON events WHEN NEW.kind='ticket.submit' BEGIN SELECT RAISE(ABORT,'injected'); END`); e != nil {
+		t.Fatal(e)
+	}
+	if _, e = s.SubmitTicket(ctx, store.Request{ID: "rollback"}, in); e == nil {
+		t.Fatal("expected event failure")
+	}
+	if contact().LastSeenAt != prior {
+		t.Error("rolled back submit changed contact")
+	}
+	if _, e = st.DB.Exec("DROP TRIGGER fail_submit"); e != nil {
+		t.Fatal(e)
+	}
+	raw, e = s.SubmitTicket(ctx, store.Request{ID: "submit"}, in)
+	if e != nil {
+		t.Fatal(e)
+	}
+	json.Unmarshal(raw, &ticket)
+	current = contact()
+	if current.LastSeenAt == prior {
+		t.Error("submit did not update contact")
+	}
+	prior = current.LastSeenAt
+	if _, e = s.SubmitTicket(ctx, store.Request{ID: "submit"}, in); e != nil {
+		t.Fatal(e)
+	}
+	if contact().LastSeenAt != prior {
+		t.Error("submit replay changed contact")
+	}
+	if _, e = s.RejectTicket(ctx, store.Request{ID: "reject"}, TicketInput{ProjectID: p.ID, TicketID: ticket.ID, ExpectedRevision: 4, Human: true, Reason: "rework"}); e != nil {
+		t.Fatal(e)
+	}
+	if contact().LastSeenAt != prior {
+		t.Error("human reject changed session contact")
+	}
+	in.ExpectedRevision = 5
+	raw, e = s.ClaimTicket(ctx, store.Request{ID: "reclaim"}, in)
+	if e != nil {
+		t.Fatal(e)
+	}
+	json.Unmarshal(raw, &ticket)
+	prior = contact().LastSeenAt
+	in.ClaimID = ticket.ClaimID
+	in.ExpectedRevision = 6
+	in.Reason = "checkpoint"
+	if _, e = s.ReleaseTicket(ctx, store.Request{ID: "release"}, in); e != nil {
+		t.Fatal(e)
+	}
+	current = contact()
+	if current.LastSeenAt == prior {
+		t.Error("owner release did not update contact")
+	}
+	prior = current.LastSeenAt
+	if _, e = s.ReleaseTicket(ctx, store.Request{ID: "release"}, in); e != nil {
+		t.Fatal(e)
+	}
+	if contact().LastSeenAt != prior {
+		t.Error("release replay changed contact")
+	}
+}

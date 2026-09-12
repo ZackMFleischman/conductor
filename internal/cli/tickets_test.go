@@ -120,3 +120,38 @@ func TestTicketAssignmentListsAndOwnerRelease(t *testing.T) {
 		}
 	}
 }
+func TestTicketActiveProjection(t *testing.T) {
+	c := testkit.New(t)
+	testkit.MustData(t, c.Run("init", "--prefix", "APP", "--request", "init"))
+	testkit.MustData(t, c.Run("agent", "register", "--name", "dev", "--request", "agent"))
+	s := testkit.MustData(t, c.Run("session", "start", "--agent", "dev", "--request", "session"))
+	sid := testkit.String(t, s, "session_id")
+	p := filepath.Join(t.TempDir(), "body")
+	if e := os.WriteFile(p, []byte("body"), 0600); e != nil {
+		t.Fatal(e)
+	}
+	v := testkit.MustData(t, c.Run("ticket", "create", "--title", "one", "--body-file", p, "--request", "create"))
+	id := testkit.String(t, v, "id")
+	v = testkit.MustData(t, c.Run("ticket", "claim", id, "--session", sid, "--expect-revision", "1", "--request", "claim"))
+	cid := testkit.String(t, v, "claim_id")
+	shown := testkit.MustData(t, c.Run("ticket", "show", id))
+	if shown["active"] != true {
+		t.Error("show reports inactive owner", shown)
+	}
+	listed := testkit.MustData(t, c.Run("ticket", "list"))
+	if listed["tickets"].([]any)[0].(map[string]any)["active"] != true {
+		t.Error("list reports inactive owner", listed)
+	}
+	v = testkit.MustData(t, c.Run("ticket", "note", id, "--session", sid, "--claim", cid, "--body-file", p, "--request", "note"))
+	if v["active"] != true {
+		t.Error("note reports inactive owner", v)
+	}
+	v = testkit.MustData(t, c.Run("ticket", "submit", id, "--session", sid, "--claim", cid, "--expect-revision", "3", "--summary-file", p, "--evidence-file", p, "--qa-file", p, "--request", "submit"))
+	if v["active"] != false {
+		t.Error("submit reports active owner", v)
+	}
+	shown = testkit.MustData(t, c.Run("ticket", "show", id))
+	if shown["active"] != false {
+		t.Error("show reports released owner active", shown)
+	}
+}
