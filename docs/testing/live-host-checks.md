@@ -12,11 +12,11 @@ Observed on Windows, 2026-09-12. This records actual checks, not planned accepta
 | Approved foundation probe | SQLite open, WAL creation, persistence, reopening, and cleanup all passed in the default shared data directory |
 | Fresh Codex session, direct sandbox execution | Host refused to execute before the CLI ran; see limitation below |
 | Fresh Codex session, normal command approval | The same probe passed all five checks in the default shared directory |
-| Fresh-session automatic tracker discovery | Not yet tested; requires the integrated installer and work skill |
+| Fresh-session automatic tracker discovery | Passed with installed build `5a247a6`: ordinary README request produced tracked work, problem reporting, submission for QA, released claim and stopped session |
 | Fresh Claude Code coordination | Not yet tested; requires sign-in |
 | Linux runtime | Not tested; cross-compilation alone is not runtime acceptance |
 
-The shared directory was `%LOCALAPPDATA%\Conductor`, outside all Git worktrees. The probe used only temporary files and cleaned them; it did not initialize a business database or register the project.
+The shared directory was `%LOCALAPPDATA%\Conductor`, outside all Git worktrees. The initial probe used only temporary files and cleaned them. Later dogfooding registered the Conductor project and isolated acceptance fixtures; see [tracer acceptance](tracer-acceptance.md).
 
 ## Windows Codex limitation
 
