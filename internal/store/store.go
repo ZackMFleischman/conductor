@@ -59,6 +59,7 @@ func Open(path string, create bool) (*Store, error) {
 	if version > SchemaVersion || version < 0 {
 		return fail(fmt.Errorf("unsupported schema version %d", version))
 	}
+	newStore := version == 0
 	if version == 0 {
 		if !create {
 			return fail(errors.New("uninitialized schema"))
@@ -84,9 +85,11 @@ func Open(path string, create bool) (*Store, error) {
 	if version < SchemaVersion {
 		// VACUUM INTO makes a consistent snapshot even when the source uses WAL.
 		// Do this before the transaction; SQLite forbids VACUUM within one.
-		backup := path + ".pre-v2-" + fmt.Sprint(time.Now().UnixNano())
-		if _, err = db.Exec("VACUUM INTO '" + strings.ReplaceAll(backup, "'", "''") + "'"); err != nil {
-			return fail(fmt.Errorf("migration backup: %w", err))
+		if !newStore {
+			backup := path + ".pre-v2-" + fmt.Sprint(time.Now().UnixNano())
+			if _, err = db.Exec("VACUUM INTO '" + strings.ReplaceAll(backup, "'", "''") + "'"); err != nil {
+				return fail(fmt.Errorf("migration backup: %w", err))
+			}
 		}
 		// A table rebuild may be needed to extend CHECK constraints. Validate
 		// every foreign key before committing and restore enforcement afterward.
