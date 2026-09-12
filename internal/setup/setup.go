@@ -117,6 +117,7 @@ type record struct {
 	Hash     string `json:"hash"`
 	Original []byte `json:"original,omitempty"`
 	Desired  []byte `json:"desired,omitempty"`
+	Previous []byte `json:"previous,omitempty"`
 }
 type manifest struct {
 	Version    int      `json:"version"`
@@ -272,6 +273,19 @@ func Plan(o Options) ([]Edit, error) {
 			after = append(after, '\n')
 			edits = append(edits, edit(mp, nil, after, "conductor manifest v1"))
 		}
+		if mb != nil && !o.Remove {
+			changed, err := upgradeRecords(&m, o, host)
+			if err != nil {
+				return nil, err
+			}
+			if changed {
+				after, err := json.MarshalIndent(m, "", "  ")
+				if err != nil {
+					return nil, err
+				}
+				edits = append(edits, edit(mp, mb, append(after, '\n'), "conductor upgrade journal v1"))
+			}
+		}
 		hostStart := len(edits)
 		for _, r := range m.Records {
 			if r.Hash != digest(r.After) || !allowed(r.Path, o, host) {
@@ -284,7 +298,7 @@ func Plan(o Options) ([]Edit, error) {
 			var a []byte
 			switch r.Kind {
 			case "file":
-				if !bytes.Equal(b, r.After) && !(bytes.Equal(b, r.Before) && (b == nil) == (r.Before == nil)) {
+				if !bytes.Equal(b, r.After) && !(r.Previous != nil && bytes.Equal(b, r.Previous)) && !(bytes.Equal(b, r.Before) && (b == nil) == (r.Before == nil)) {
 					return nil, fmt.Errorf("owned content conflict: %s", r.Path)
 				}
 				if o.Remove {
@@ -381,11 +395,11 @@ func Plan(o Options) ([]Edit, error) {
 }
 func allowed(path string, o Options, host string) bool {
 	root := o.CodexHome
-	skill := filepath.Join(o.UserHome, ".agents", "skills", "conductor-work")
+	skill := filepath.Join(o.UserHome, ".agents", "skills")
 	names := []string{"AGENTS.md", "AGENTS.override.md", "config.toml"}
 	if host == "claude" {
 		root = o.ClaudeHome
-		skill = filepath.Join(root, "skills", "conductor-work")
+		skill = filepath.Join(root, "skills")
 		names = []string{"CLAUDE.md", "settings.json"}
 	}
 	for _, n := range names {
@@ -394,12 +408,12 @@ func allowed(path string, o Options, host string) bool {
 		}
 	}
 	rel, e := filepath.Rel(skill, path)
-	return e == nil && rel != "." && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) && !filepath.IsAbs(rel)
+	parts := strings.Split(filepath.ToSlash(rel), "/")
+	return e == nil && len(parts) > 1 && knownSkill(parts[0]) && rel != "." && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) && !filepath.IsAbs(rel)
 }
 func buildRecords(m *manifest, o Options, host string) error {
 	root := o.CodexHome
 	instruction := filepath.Join(root, "AGENTS.md")
-	skill := filepath.Join(o.UserHome, ".agents", "skills", "conductor-work")
 	if host == "codex" {
 		override := filepath.Join(root, "AGENTS.override.md")
 		b, e := read(override)
@@ -412,7 +426,6 @@ func buildRecords(m *manifest, o Options, host string) error {
 	} else {
 		root = o.ClaudeHome
 		instruction = filepath.Join(root, "CLAUDE.md")
-		skill = filepath.Join(root, "skills", "conductor-work")
 	}
 	b, e := read(instruction)
 	if e != nil {
@@ -429,8 +442,8 @@ func buildRecords(m *manifest, o Options, host string) error {
 	}
 	sort.Strings(keys)
 	for _, k := range keys {
-		p := filepath.Join(skill, filepath.FromSlash(k))
-		if !allowed(p, o, host) {
+		p, err := skillDestination(k, o, host)
+		if err != nil || !allowed(p, o, host) {
 			return fmt.Errorf("invalid skill path %q", k)
 		}
 		old, e := read(p)
