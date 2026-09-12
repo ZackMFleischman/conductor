@@ -37,7 +37,11 @@ git_commit="$(git -C "$source_directory" rev-parse HEAD)" || {
     printf 'Unable to determine the git commit for the build source.\n' >&2
     exit 1
 }
-if [[ -n "$(git -C "$source_directory" status --porcelain --untracked-files=normal)" ]]; then
+if ! git_status="$(git -C "$source_directory" status --porcelain --untracked-files=normal)"; then
+    printf 'Unable to determine whether the build source is dirty.\n' >&2
+    exit 1
+fi
+if [[ -n "$git_status" ]]; then
     git_dirty="true"
 else
     git_dirty="false"
