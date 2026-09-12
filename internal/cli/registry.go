@@ -12,11 +12,26 @@ import (
 
 func init() { Register("context", Context); Register("init", Init); Register("doctor", Doctor) }
 func OpenProject(ctx context.Context, env Env, f Flags) (*core.Service, core.Project, gitctx.Context, error) {
+	return openProject(ctx, env, f, false)
+}
+
+// OpenProjectReadOnly resolves a registered project without database writes or schema migration.
+func OpenProjectReadOnly(ctx context.Context, env Env, f Flags) (*core.Service, core.Project, gitctx.Context, error) {
+	return openProject(ctx, env, f, true)
+}
+
+func openProject(ctx context.Context, env Env, f Flags, readOnly bool) (*core.Service, core.Project, gitctx.Context, error) {
 	g, ge := gitctx.Resolve(env.CWD)
 	if ge != nil && f.Values["project"] == "" {
 		return nil, core.Project{}, g, core.Fail("NOT_FOUND", "not a registered checkout; use --project")
 	}
-	s, e := store.Open(filepath.Join(env.Home, "conductor.db"), false)
+	var s *store.Store
+	var e error
+	if readOnly {
+		s, e = store.OpenReadOnly(filepath.Join(env.Home, "conductor.db"))
+	} else {
+		s, e = store.Open(filepath.Join(env.Home, "conductor.db"), false)
+	}
 	if e != nil {
 		return nil, core.Project{}, g, e
 	}

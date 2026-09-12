@@ -31,7 +31,11 @@ func Agent(ctx context.Context, env Env, args []string) (any, error) {
 			return nil, e
 		}
 	}
-	s, p, _, e := OpenProject(ctx, env, f)
+	open := OpenProject
+	if op == "list" {
+		open = OpenProjectReadOnly
+	}
+	s, p, _, e := open(ctx, env, f)
 	if e != nil {
 		return nil, e
 	}

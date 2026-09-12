@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"github.com/ZackMFleischman/conductor/internal/gitctx"
+	"regexp"
 	"strings"
 )
 
@@ -31,8 +32,10 @@ type Session struct {
 	ProcessLiveness string  `json:"process_liveness"`
 }
 
+var uuidAgentName = regexp.MustCompile(`(?i)^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
+
 func (s *Service) RegisterAgent(ctx context.Context, p, name, role, provider, request string) (json.RawMessage, error) {
-	if strings.TrimSpace(name) == "" || name == "none" || len(name) > 128 {
+	if strings.TrimSpace(name) == "" || name == "none" || len(name) > 128 || uuidAgentName.MatchString(name) {
 		return nil, Fail("USAGE", "invalid or reserved agent name")
 	}
 	return s.Mutate(ctx, p, request, "agent.register", "local-user", map[string]string{"name": name, "role": role, "provider": provider}, func(c *sql.Conn) (json.RawMessage, error) {
@@ -74,7 +77,11 @@ func ReadSession(ctx context.Context, c interface {
 func (s *Service) StartSession(ctx context.Context, p, agent, request string, g gitctx.Context) (json.RawMessage, error) {
 	return s.Mutate(ctx, p, request, "session.start", "local-user", map[string]any{"agent": agent, "location": g}, func(c *sql.Conn) (json.RawMessage, error) {
 		var aid, common string
-		e := c.QueryRowContext(ctx, "SELECT id FROM agents WHERE project_id=? AND (id=? OR name=?)", p, agent, agent).Scan(&aid)
+		// Exact IDs take precedence over names in registries created before UUID names were reserved.
+		e := c.QueryRowContext(ctx, "SELECT id FROM agents WHERE project_id=? AND id=?", p, agent).Scan(&aid)
+		if e == sql.ErrNoRows {
+			e = c.QueryRowContext(ctx, "SELECT id FROM agents WHERE project_id=? AND name=?", p, agent).Scan(&aid)
+		}
 		if e == sql.ErrNoRows {
 			return nil, Fail("NOT_FOUND", "agent not found")
 		}
