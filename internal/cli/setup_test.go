@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 )
 
@@ -91,6 +92,54 @@ func TestSetupOutputDoesNotExposePersonalConfig(t *testing.T) {
 		}
 		if bytes.Contains(out.Bytes(), []byte(secret)) || bytes.Contains(out.Bytes(), []byte(base64.StdEncoding.EncodeToString([]byte(secret)))) {
 			t.Fatal("printed secret")
+		}
+	}
+}
+
+func TestSetupReportsWindowsApprovalWithoutExposingConfig(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("Windows compatibility")
+	}
+	root := t.TempDir()
+	t.Setenv("USERPROFILE", root)
+	t.Setenv("HOME", root)
+	t.Setenv("CODEX_HOME", filepath.Join(root, "codex"))
+	p := filepath.Join(root, "codex", "config.toml")
+	if err := os.MkdirAll(filepath.Dir(p), 0700); err != nil {
+		t.Fatal(err)
+	}
+	before := []byte("private_token = 'never-show-this-token'\n[windows]\nsandbox = 'unelevated'\n")
+	if err := os.WriteFile(p, before, 0600); err != nil {
+		t.Fatal(err)
+	}
+	for _, apply := range []bool{false, true, true} {
+		var out bytes.Buffer
+		args := []string{"setup", "--agents", "codex", "--json"}
+		if apply {
+			args = append(args, "--apply")
+		}
+		if code := Run(context.Background(), Env{CWD: root, Home: filepath.Join(root, "data"), Out: &out}, args); code != 0 {
+			t.Fatal(out.String())
+		}
+		var result map[string]any
+		if err := json.Unmarshal(out.Bytes(), &result); err != nil {
+			t.Fatal(err)
+		}
+		data := result["data"].(map[string]any)
+		access, ok := data["access"].(map[string]any)
+		if !ok {
+			t.Fatal("missing per-host access result")
+		}
+		codex := access["codex"].(map[string]any)
+		if codex["mode"] != "command_approval" || codex["root_configured"] != false || codex["verified"] != false || codex["warning"] == "" {
+			t.Fatalf("misleading access result: %+v", codex)
+		}
+		if bytes.Contains(out.Bytes(), []byte("never-show-this-token")) {
+			t.Fatal("exposed personal config")
+		}
+		after, err := os.ReadFile(p)
+		if err != nil || !bytes.Equal(before, after) {
+			t.Fatalf("changed config: %v", err)
 		}
 	}
 }

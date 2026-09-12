@@ -80,6 +80,10 @@ func Setup(ctx context.Context, env Env, args []string) (any, error) {
 	if err != nil {
 		return nil, setupError(err)
 	}
+	access, err := setup.PlannedAccess(options, edits)
+	if err != nil {
+		return nil, setupError(err)
+	}
 	if f.Bools["apply"] {
 		if err = ctx.Err(); err != nil {
 			return nil, err
@@ -91,7 +95,7 @@ func Setup(ctx context.Context, env Env, args []string) (any, error) {
 	if edits == nil {
 		edits = []setup.Edit{}
 	}
-	return map[string]any{"applied": f.Bools["apply"], "remove": f.Bools["remove"], "edits": edits, "configured": map[string]any{"executable": exe, "data_home": home, "codex_home": codexHome, "codex_skill_home": filepath.Join(userHome, ".agents", "skills"), "claude_home": claudeHome}, "access_verified": false, "next_steps": "Start fresh selected host sessions. Run doctor --probe-write inside each host, then verify context and conductor-work discovery. Configured paths do not prove effective sandbox access."}, nil
+	return map[string]any{"applied": f.Bools["apply"], "remove": f.Bools["remove"], "edits": edits, "configured": map[string]any{"executable": exe, "data_home": home, "codex_home": codexHome, "codex_skill_home": filepath.Join(userHome, ".agents", "skills"), "claude_home": claudeHome}, "access": access, "access_verified": false, "next_steps": "Start fresh selected host sessions. Run doctor --probe-write inside each host, then verify context and conductor-work discovery. Configured paths do not prove effective sandbox access."}, nil
 }
 func setupError(err error) error {
 	code := "STORAGE_ERROR"

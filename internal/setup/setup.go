@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"sort"
 	"strings"
 
@@ -24,6 +25,78 @@ type Options struct {
 	// Explicit roots make host installation testable without touching the real home.
 	UserHome, CodexHome, ClaudeHome string
 	SkillFiles                      map[string][]byte
+	// Platform defaults to the running OS; explicit values support host-policy tests.
+	Platform string
+}
+
+// Access describes configured intent, never proof that a host command can run.
+type Access struct {
+	Mode           string `json:"mode"`
+	RootConfigured bool   `json:"root_configured"`
+	Verified       bool   `json:"verified"`
+	Warning        string `json:"warning,omitempty"`
+}
+
+func codexAccess(b []byte, o Options) (Access, error) {
+	var config map[string]any
+	if err := toml.Unmarshal(b, &config); err != nil {
+		return Access{}, fmt.Errorf("invalid Codex config TOML")
+	}
+	a := Access{Mode: "writable_root"}
+	if workspace, ok := config["sandbox_workspace_write"].(map[string]any); ok {
+		if roots, ok := workspace["writable_roots"].([]any); ok {
+			for _, root := range roots {
+				if root == o.DataHome {
+					a.RootConfigured = true
+				}
+			}
+		}
+	}
+	platform := o.Platform
+	if platform == "" {
+		platform = runtime.GOOS
+	}
+	if platform == "windows" {
+		windows, _ := config["windows"].(map[string]any)
+		// Only explicit elevated mode opts into split writable roots. Missing or
+		// unknown modes have no established compatibility and remain unchanged.
+		if windows["sandbox"] != "elevated" {
+			a.Mode = "command_approval"
+			a.Warning = "Windows Codex split writable roots are incompatible with unelevated sandboxing, and compatibility is unknown for unspecified modes. Setup does not add a global writable root in this mode. Use normal per-command approval for Conductor access; existing roots and security settings are preserved. Access remains unverified."
+		}
+	}
+	return a, nil
+}
+
+// PlannedAccess reports the effective config after the preview, without exposing
+// personal config contents. Removal has no installed-access claim.
+func PlannedAccess(o Options, edits []Edit) (map[string]Access, error) {
+	result := map[string]Access{}
+	if o.Remove {
+		return result, nil
+	}
+	for _, host := range o.Agents {
+		if host != "codex" {
+			result[host] = Access{Mode: "additional_directory", RootConfigured: true}
+			continue
+		}
+		path := filepath.Join(o.CodexHome, "config.toml")
+		b, err := read(path)
+		if err != nil {
+			return nil, err
+		}
+		for _, edit := range edits {
+			if edit.Path == path {
+				b = edit.After
+			}
+		}
+		a, err := codexAccess(b, o)
+		if err != nil {
+			return nil, err
+		}
+		result[host] = a
+	}
+	return result, nil
 }
 
 type Edit struct {
@@ -271,6 +344,17 @@ func Plan(o Options) ([]Edit, error) {
 				return nil, fmt.Errorf("unsupported ownership record")
 			}
 			// Restore absent files only if their owned content was the entire file.
+			if !o.Remove && host == "codex" && r.Path == filepath.Join(root, "config.toml") {
+				access, err := codexAccess(b, o)
+				if err != nil {
+					return nil, err
+				}
+				if access.Mode == "command_approval" {
+					// Keep the ownership journal for removal, but never repair a
+					// missing root into an incompatible Windows configuration.
+					a = b
+				}
+			}
 			if o.Remove && r.Before == nil && len(a) == 0 {
 				a = nil
 			}
@@ -369,6 +453,13 @@ func buildRecords(m *manifest, o Options, host string) error {
 	}
 	var a []byte
 	if host == "codex" {
+		access, err := codexAccess(b, o)
+		if err != nil {
+			return err
+		}
+		if access.Mode == "command_approval" {
+			return nil
+		}
 		a, e = mergeTOML(b, o.DataHome)
 	} else {
 		a, e = mergeJSON(b, o.DataHome)

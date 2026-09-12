@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+
 	"strings"
 	"testing"
 )
@@ -14,7 +15,7 @@ import (
 func fixture(t *testing.T) Options {
 	t.Helper()
 	root := t.TempDir()
-	return Options{Agents: []string{"codex", "claude"}, Executable: filepath.Join(root, "Program Files", "conductor.exe"), DataHome: filepath.Join(root, "shared data"), UserHome: root, CodexHome: filepath.Join(root, "custom codex"), ClaudeHome: filepath.Join(root, "custom claude"), SkillFiles: map[string][]byte{"SKILL.md": []byte("test skill"), "references/commands.md": []byte("commands")}}
+	return Options{Platform: "linux", Agents: []string{"codex", "claude"}, Executable: filepath.Join(root, "Program Files", "conductor.exe"), DataHome: filepath.Join(root, "shared data"), UserHome: root, CodexHome: filepath.Join(root, "custom codex"), ClaudeHome: filepath.Join(root, "custom claude"), SkillFiles: map[string][]byte{"SKILL.md": []byte("test skill"), "references/commands.md": []byte("commands")}}
 }
 func put(t *testing.T, p string, b []byte) {
 	t.Helper()
@@ -389,5 +390,199 @@ func TestInterruptedRemovalRetainsPersonalEdits(t *testing.T) {
 				t.Fatal("removal journal remains")
 			}
 		})
+	}
+}
+
+func TestWindowsUnelevatedPreservesConfigAndInstallsSkill(t *testing.T) {
+	o := fixture(t)
+	o.Platform = "windows"
+	o.Agents = []string{"codex"}
+	p := filepath.Join(o.CodexHome, "config.toml")
+	before := []byte("# personal\r\n[windows]\r\nsandbox = 'unelevated'\r\n[sandbox_workspace_write]\r\nwritable_roots = ['existing']\r\n")
+	put(t, p, before)
+	instruction := filepath.Join(o.CodexHome, "AGENTS.md")
+	put(t, instruction, []byte("personal\n"))
+	edits, err := Plan(o)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, edit := range edits {
+		if edit.Path == p {
+			t.Fatal("incompatible Windows setup must not change global writable roots")
+		}
+	}
+	if err = Apply(edits[:1]); err != nil {
+		t.Fatal(err)
+	}
+	repair, err := Plan(o)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = Apply(repair); err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(get(t, p), before) {
+		t.Fatal("changed personal config bytes")
+	}
+	if !bytes.Contains(get(t, instruction), []byte("<!-- conductor:start -->")) {
+		t.Fatal("missing bootstrap")
+	}
+	if string(get(t, filepath.Join(o.UserHome, ".agents", "skills", "conductor-work", "SKILL.md"))) != "test skill" {
+		t.Fatal("missing skill")
+	}
+	again, err := Plan(o)
+	if err != nil || len(again) != 0 {
+		t.Fatalf("not idempotent: %v %+v", err, again)
+	}
+	o.Remove = true
+	edits, err = Plan(o)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = Apply(edits); err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(get(t, p), before) || string(get(t, instruction)) != "personal\n" {
+		t.Fatal("remove lost personal content")
+	}
+}
+
+func TestCodexAccessPolicy(t *testing.T) {
+	for _, tc := range []struct {
+		name, platform, config string
+		add                    bool
+	}{
+		{"linux", "linux", "[windows]\nsandbox = 'unelevated'\n", true},
+		{"windows elevated", "windows", "[windows]\nsandbox = 'elevated'\n", true},
+		{"windows missing", "windows", "", false},
+		{"windows unknown", "windows", "windows = {sandbox = 'future'}\n", false},
+		{"windows dotted", "windows", "windows.sandbox = 'unelevated'\n", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			o := fixture(t)
+			o.Platform = tc.platform
+			o.Agents = []string{"codex"}
+			p := filepath.Join(o.CodexHome, "config.toml")
+			put(t, p, []byte(tc.config))
+			edits, err := Plan(o)
+			if err != nil {
+				t.Fatal(err)
+			}
+			access, err := PlannedAccess(o, edits)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if access["codex"].RootConfigured != tc.add || access["codex"].Verified {
+				t.Fatalf("misleading access: %+v", access)
+			}
+			if err = Apply(edits); err != nil {
+				t.Fatal(err)
+			}
+			var parsed map[string]any
+			if err = toml.Unmarshal(get(t, p), &parsed); err != nil {
+				t.Fatal(err)
+			}
+			workspace, _ := parsed["sandbox_workspace_write"].(map[string]any)
+			roots, _ := workspace["writable_roots"].([]any)
+			if tc.add {
+				if len(roots) != 1 || roots[0] != o.DataHome {
+					t.Fatalf("missing narrow root: %+v", roots)
+				}
+			} else if !bytes.Equal(get(t, p), []byte(tc.config)) {
+				t.Fatal("changed incompatible config")
+			}
+		})
+	}
+}
+
+func TestWindowsPreservesExistingRootOwnership(t *testing.T) {
+	for _, owned := range []bool{false, true} {
+		t.Run(fmt.Sprint(owned), func(t *testing.T) {
+			o := fixture(t)
+			o.Agents = []string{"codex"}
+			p := filepath.Join(o.CodexHome, "config.toml")
+			before := []byte("[windows]\nsandbox = 'unelevated'\n")
+			if !owned {
+				var err error
+				before, err = mergeTOML(before, o.DataHome)
+				if err != nil {
+					t.Fatal(err)
+				}
+				o.Platform = "windows"
+			}
+			put(t, p, before)
+			edits, err := Plan(o)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err = Apply(edits); err != nil {
+				t.Fatal(err)
+			}
+			o.Platform = "windows"
+			manifestPath := filepath.Join(o.CodexHome, "conductor-setup.json")
+			journal := get(t, manifestPath)
+			edits, err = Plan(o)
+			if err != nil || len(edits) != 0 {
+				t.Fatalf("repeat: %v %+v", err, edits)
+			}
+			access, err := PlannedAccess(o, edits)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !access["codex"].RootConfigured || access["codex"].Mode != "command_approval" {
+				t.Fatalf("lost existing root status: %+v", access)
+			}
+			if !bytes.Equal(journal, get(t, manifestPath)) {
+				t.Fatal("lost ownership journal")
+			}
+			o.Remove = true
+			edits, err = Plan(o)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err = Apply(edits); err != nil {
+				t.Fatal(err)
+			}
+			if !bytes.Equal(before, get(t, p)) {
+				t.Fatal("lost caller roots or retained owned root")
+			}
+		})
+	}
+}
+
+func TestWindowsDoesNotRepairPendingIncompatibleRoot(t *testing.T) {
+	o := fixture(t)
+	o.Agents = []string{"codex"}
+	p := filepath.Join(o.CodexHome, "config.toml")
+	before := []byte("[windows]\nsandbox = 'unelevated'\n")
+	put(t, p, before)
+	edits, err := Plan(o)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = Apply(edits[:1]); err != nil {
+		t.Fatal(err)
+	}
+	o.Platform = "windows"
+	edits, err = Plan(o)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = Apply(edits); err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(get(t, p), before) {
+		t.Fatal("repair added incompatible root")
+	}
+	o.Remove = true
+	edits, err = Plan(o)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = Apply(edits); err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(get(t, p), before) {
+		t.Fatal("remove changed original config")
 	}
 }
