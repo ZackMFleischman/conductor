@@ -15,7 +15,7 @@ $Conductor = 'C:\Program Files\Conductor\conductor.exe'
 & $Conductor doctor --probe-write --json
 ```
 
-Setup previews by default; its JSON edits include paths, prior hashes and before/after bytes (JSON byte fields use base64). `--apply` computes and applies that plan, checking each prior hash immediately before replacement. No setup command initializes the tracker. Applying several files is not transactional: a failure reports the completed count; rerun preview to inspect and repair. Ownership manifests protect user-edited files/blocks from overwrite. Resolve a conflict deliberately rather than deleting personal content.
+Setup previews by default; its JSON edits include paths, prior hashes, actions, and descriptions of the owned changes. Personal configuration bytes remain private to the installer and its local ownership journal. `--apply` computes and applies that plan, checking each prior hash immediately before replacement. No setup command initializes the tracker. Applying several files is not transactional: a failure reports the completed count; rerun preview to inspect and repair. Install and removal transitions are journaled before file changes so interrupted operations can resume. Ownership manifests protect user-edited files/blocks from overwrite. Resolve a conflict deliberately rather than deleting personal content.
 
 The default Windows data directory is `%LOCALAPPDATA%\Conductor`, containing `conductor.db`. An explicit `--home 'C:\shared data\Conductor'` overrides `CONDUCTOR_HOME`, which overrides the platform default. Use the same home for setup, doctor, and all tracker commands. It is never inferred from the working directory.
 

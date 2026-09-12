@@ -2,9 +2,11 @@ package setup
 
 import (
 	"bytes"
+	"fmt"
 	"github.com/pelletier/go-toml/v2"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -315,5 +317,77 @@ func TestUnselectedHostDoesNotRequireRoot(t *testing.T) {
 	o.ClaudeHome = ""
 	if _, e := Plan(o); e != nil {
 		t.Fatal(e)
+	}
+}
+func TestTOMLMultilineStringCannotMasqueradeAsSetting(t *testing.T) {
+	for _, body := range []string{"[sandbox_workspace_write]\ncomment = '''\nwritable_roots = []\n'''\nwritable_roots = ['existing']\n", "comment = '''\n[sandbox_workspace_write]\nwritable_roots = []\n'''\n[sandbox_workspace_write]\nwritable_roots = ['existing']\n"} {
+		o := fixture(t)
+		o.Agents = []string{"codex"}
+		p := filepath.Join(o.CodexHome, "config.toml")
+		put(t, p, []byte(body))
+		edits, e := Plan(o)
+		if e != nil {
+			if !bytes.Equal(get(t, p), []byte(body)) {
+				t.Fatal("rejected preview wrote config")
+			}
+			continue
+		}
+		if e = Apply(edits); e != nil {
+			t.Fatal(e)
+		}
+		var before, after map[string]any
+		toml.Unmarshal([]byte(body), &before)
+		toml.Unmarshal(get(t, p), &after)
+		old := before["sandbox_workspace_write"].(map[string]any)
+		old["writable_roots"] = []any{"existing", o.DataHome}
+		if !reflect.DeepEqual(before, after) {
+			t.Fatalf("changed unrelated TOML or missed roots: %#v", after)
+		}
+	}
+}
+func TestInterruptedRemovalRetainsPersonalEdits(t *testing.T) {
+	for _, cut := range []int{1, 2, 3, 4, 5} {
+		t.Run(fmt.Sprint(cut), func(t *testing.T) {
+			o := fixture(t)
+			o.Agents = []string{"codex"}
+			instruction := filepath.Join(o.CodexHome, "AGENTS.md")
+			config := filepath.Join(o.CodexHome, "config.toml")
+			put(t, instruction, []byte("personal\n"))
+			put(t, config, []byte("model = 'old'\n"))
+			edits, e := Plan(o)
+			if e != nil {
+				t.Fatal(e)
+			}
+			if e = Apply(edits); e != nil {
+				t.Fatal(e)
+			}
+			put(t, instruction, append(get(t, instruction), []byte("new personal note\n")...))
+			put(t, config, bytes.Replace(get(t, config), []byte("'old'"), []byte("'new'"), 1))
+			o.Remove = true
+			edits, e = Plan(o)
+			if e != nil {
+				t.Fatal(e)
+			}
+			n := cut
+			if n > len(edits) {
+				n = len(edits)
+			}
+			if e = Apply(edits[:n]); e != nil {
+				t.Fatal(e)
+			}
+			repair, e := Plan(o)
+			if e != nil {
+				t.Fatal(e)
+			}
+			if e = Apply(repair); e != nil {
+				t.Fatal(e)
+			}
+			if string(get(t, instruction)) != "personal\nnew personal note\n" || string(get(t, config)) != "model = 'new'\n" {
+				t.Fatal("lost personal edits")
+			}
+			if _, e = os.Stat(filepath.Join(o.CodexHome, "conductor-setup.json")); !os.IsNotExist(e) {
+				t.Fatal("removal journal remains")
+			}
+		})
 	}
 }

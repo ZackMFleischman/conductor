@@ -10,6 +10,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"reflect"
 	"sort"
 	"strings"
 
@@ -26,12 +27,13 @@ type Options struct {
 }
 
 type Edit struct {
-	Path       string `json:"path"`
-	BeforeHash string `json:"before_hash"`
-	Before     []byte `json:"before,omitempty"`
-	After      []byte `json:"after,omitempty"`
-	Ownership  string `json:"ownership"`
-	Action     string `json:"action"`
+	Path        string `json:"path"`
+	BeforeHash  string `json:"before_hash"`
+	Before      []byte `json:"-"`
+	After       []byte `json:"-"`
+	Ownership   string `json:"ownership"`
+	Action      string `json:"action"`
+	Description string `json:"description"`
 }
 
 type record struct {
@@ -48,6 +50,8 @@ type manifest struct {
 	Executable string   `json:"executable"`
 	DataHome   string   `json:"data_home"`
 	Records    []record `json:"records"`
+	Removing   bool     `json:"removing,omitempty"`
+	Removal    []record `json:"removal,omitempty"`
 }
 
 func digest(b []byte) string {
@@ -94,7 +98,18 @@ func edit(path string, b, a []byte, ownership string) Edit {
 	if a == nil {
 		action = "remove"
 	}
-	return Edit{path, digest(b), b, a, ownership, action}
+	description := "Update Conductor-owned work skill"
+	switch filepath.Base(path) {
+	case "conductor-setup.json":
+		description = "Update private Conductor ownership journal"
+	case "AGENTS.md", "AGENTS.override.md", "CLAUDE.md":
+		description = "Update only the managed Conductor bootstrap block"
+	case "config.toml":
+		description = "Update only Conductor's data-home entry in sandbox_workspace_write.writable_roots"
+	case "settings.json":
+		description = "Update only Conductor's data-home entry in permissions.additionalDirectories"
+	}
+	return Edit{path, digest(b), b, a, ownership, action, description}
 }
 
 // Plan is read-only. A per-host journal is installed first so interrupted writes
@@ -149,6 +164,29 @@ func Plan(o Options) ([]Edit, error) {
 			if !o.Remove && (m.Executable != o.Executable || m.DataHome != o.DataHome) {
 				return nil, fmt.Errorf("setup paths changed; remove the previous integration before reinstalling")
 			}
+			if m.Removing {
+				if !o.Remove {
+					return nil, fmt.Errorf("removal in progress; finish setup --remove before installing")
+				}
+				for _, r := range m.Removal {
+					if !allowed(r.Path, o, host) || r.Hash != digest(r.After) {
+						return nil, fmt.Errorf("invalid removal journal")
+					}
+					b, err := read(r.Path)
+					if err != nil {
+						return nil, err
+					}
+					if digest(b) == digest(r.After) {
+						continue
+					}
+					if digest(b) != digest(r.Before) {
+						return nil, fmt.Errorf("removal conflict: %s changed after preview", r.Path)
+					}
+					edits = append(edits, edit(r.Path, b, r.After, r.Hash))
+				}
+				edits = append(edits, edit(mp, mb, nil, "conductor manifest v1"))
+				continue
+			}
 		} else {
 			if o.Remove {
 				continue
@@ -161,6 +199,7 @@ func Plan(o Options) ([]Edit, error) {
 			after = append(after, '\n')
 			edits = append(edits, edit(mp, nil, after, "conductor manifest v1"))
 		}
+		hostStart := len(edits)
 		for _, r := range m.Records {
 			if r.Hash != digest(r.After) || !allowed(r.Path, o, host) {
 				return nil, fmt.Errorf("invalid owned record %s", r.Path)
@@ -240,7 +279,18 @@ func Plan(o Options) ([]Edit, error) {
 			}
 		}
 		if o.Remove {
-			edits = append(edits, edit(mp, mb, nil, "conductor manifest v1"))
+			// Journal the exact removal snapshots (including unrelated personal
+			// edits) before touching files, so a restart recognizes completed steps.
+			hostEdits := append([]Edit(nil), edits[hostStart:]...)
+			m.Removing = true
+			for _, e := range hostEdits {
+				m.Removal = append(m.Removal, record{Path: e.Path, Before: e.Before, After: e.After, Hash: digest(e.After)})
+			}
+			journal, _ := json.MarshalIndent(m, "", "  ")
+			journal = append(journal, '\n')
+			edits = append(edits[:hostStart], edit(mp, mb, journal, "conductor removal journal v1"))
+			edits = append(edits, hostEdits...)
+			edits = append(edits, edit(mp, journal, nil, "conductor manifest v1"))
 		}
 	}
 	return edits, nil
@@ -543,6 +593,43 @@ func uniqueJSON(d *json.Decoder) error {
 	return e
 }
 func mergeTOML(b []byte, home string) ([]byte, error) {
+	// The narrow textual editor must produce exactly the expected semantic
+	// change. In particular, lines inside multiline strings are never settings.
+	a, err := mergeTOMLCandidate(b, home)
+	if err != nil {
+		return nil, err
+	}
+	var expected, actual map[string]any
+	if err = toml.Unmarshal(b, &expected); err != nil {
+		return nil, err
+	}
+	if expected == nil {
+		expected = map[string]any{}
+	}
+	section, _ := expected["sandbox_workspace_write"].(map[string]any)
+	if section == nil {
+		section = map[string]any{}
+		expected["sandbox_workspace_write"] = section
+	}
+	roots, _ := section["writable_roots"].([]any)
+	found := false
+	for _, r := range roots {
+		if r == home {
+			found = true
+		}
+	}
+	if !found {
+		section["writable_roots"] = append(roots, home)
+	}
+	if err = toml.Unmarshal(a, &actual); err != nil {
+		return nil, fmt.Errorf("ambiguous TOML edit: resulting configuration is invalid")
+	}
+	if !reflect.DeepEqual(expected, actual) {
+		return nil, fmt.Errorf("ambiguous TOML layout: cannot isolate writable_roots without changing other values")
+	}
+	return a, nil
+}
+func mergeTOMLCandidate(b []byte, home string) ([]byte, error) {
 	var v map[string]any
 	if e := toml.Unmarshal(b, &v); e != nil {
 		return nil, e

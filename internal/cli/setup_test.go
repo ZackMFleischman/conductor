@@ -3,6 +3,7 @@ package cli
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -51,6 +52,45 @@ func TestSetupRejectsUsage(t *testing.T) {
 		var out bytes.Buffer
 		if code := Run(context.Background(), Env{CWD: t.TempDir(), Home: t.TempDir(), Out: &out}, args); code != 2 {
 			t.Fatalf("%v: code %d: %s", args, code, &out)
+		}
+	}
+}
+func TestSetupOutputDoesNotExposePersonalConfig(t *testing.T) {
+	root := t.TempDir()
+	t.Setenv("USERPROFILE", root)
+	t.Setenv("HOME", root)
+	t.Setenv("CLAUDE_CONFIG_DIR", filepath.Join(root, "claude"))
+	p := filepath.Join(root, "claude", "settings.json")
+	os.MkdirAll(filepath.Dir(p), 0700)
+	secret := "fixture-private-token-never-print"
+	os.WriteFile(p, []byte(`{"env":{"TOKEN":"`+secret+`"}}`), 0600)
+	for _, apply := range []bool{false, true} {
+		var out bytes.Buffer
+		args := []string{"setup", "--agents", "claude", "--json"}
+		if apply {
+			args = append(args, "--apply")
+		}
+		if code := Run(context.Background(), Env{CWD: root, Home: filepath.Join(root, "data"), Out: &out}, args); code != 0 {
+			t.Fatal(out.String())
+		}
+		var result map[string]any
+		if e := json.Unmarshal(out.Bytes(), &result); e != nil {
+			t.Fatal(e)
+		}
+		edits := result["data"].(map[string]any)["edits"].([]any)
+		for _, raw := range edits {
+			e := raw.(map[string]any)
+			for _, forbidden := range []string{"before", "after", "records", "original", "desired"} {
+				if _, ok := e[forbidden]; ok {
+					t.Fatalf("preview exposes private %s bytes", forbidden)
+				}
+			}
+			if e["description"] == nil {
+				t.Fatal("missing reviewable owned-change description")
+			}
+		}
+		if bytes.Contains(out.Bytes(), []byte(secret)) || bytes.Contains(out.Bytes(), []byte(base64.StdEncoding.EncodeToString([]byte(secret)))) {
+			t.Fatal("printed secret")
 		}
 	}
 }
