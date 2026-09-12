@@ -4,12 +4,12 @@ This release is a local CLI and one work skill. Git is required for repository/w
 
 ## Install and inspect setup
 
-Place the built Windows executable in a stable directory, for example `C:\Program Files\Conductor\conductor.exe`. A packaged executable includes its skill files; it does not need the source repository at runtime. To build from source with the pinned Go toolchain, run `go build -o conductor.exe ./cmd/conductor` and copy that executable to the chosen location.
+Place the built Windows executable in a stable directory, for example `%LOCALAPPDATA%\Conductor\bin\conductor.exe`. A packaged executable includes its skill files; it does not need the source repository at runtime. To build from source with the pinned Go toolchain, run `go build -o conductor.exe ./cmd/conductor` and copy that executable to the chosen location.
 
 PowerShell requires the call operator for quoted executable paths:
 
 ```powershell
-$Conductor = 'C:\Program Files\Conductor\conductor.exe'
+$Conductor = Join-Path $env:LOCALAPPDATA 'Conductor\bin\conductor.exe'
 & $Conductor setup --agents codex,claude --json
 & $Conductor setup --agents codex,claude --apply --json
 & $Conductor doctor --probe-write --json
@@ -26,6 +26,8 @@ Start fresh host sessions after applying. Configuration is not proof of access: 
 On Windows, Codex CLI 0.154.0 with `[windows] sandbox = 'unelevated'` can report `cannot enforce split writable root sets directly; refusing to run unsandboxed` for a separate shared data directory. Setup does not change that sandbox mode. Use the host's normal per-command approval flow when available and permitted, then rerun the exact probe; otherwise report blocked access. Never disable protections or silently switch to a per-worktree database. Claude's live checks also require an authenticated host session.
 
 ## Register and work a ticket
+
+Projects opt in individually. Setup alone does not register a project: `init` registers its Git common directory in the shared database. All linked worktrees use that registration; separate clones require their own `init`. The installed bootstrap performs a read-only context check in other projects and skips the work skill when they are unregistered. An inaccessible registry is an error, not proof that a project is unregistered.
 
 Run these from a Git repository/worktree. Substitute returned UUIDs and revisions for placeholders. Every database mutation needs a unique caller-retained request key; retries of one operation reuse its exact key and payload. These examples use distinct descriptive keys once; choose new keys for a new run.
 
