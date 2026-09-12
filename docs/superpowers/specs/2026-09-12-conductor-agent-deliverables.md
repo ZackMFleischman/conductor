@@ -2,6 +2,8 @@
 
 Design contract · 2026-09-12 · Hooks excluded from initial delivery
 
+The [team workflow contract](2026-09-12-conductor-team-workflow.md) defines the approved planning, review, fresh-worker, startup, and improvement-agent behavior. It supersedes the earlier persistent-worker default. Only conductor-work is installed in the tracer; later skills ship with their supporting core operations.
+
 ## Recommendation
 
 Install the executable and user-level skills once per execution host. Add one short managed instruction to each selected agent host's active user-level instructions. Register a repository once in Conductor; all its linked worktrees then use the same project. No repository instruction files, MCP server, custom agent launcher, or hooks are needed for initial use.
@@ -26,11 +28,11 @@ User-level changes take effect according to the host's loading behavior; install
 
 **Reporting during work** belongs in conductor-work. An agent records failed attempts, missing context, user corrections, rework, and workarounds through a quick problem command. Capture expected and actual behavior, optional evidence, and automatic ticket/session context. Do not require the agent to diagnose the system before reporting. Preserve reports even after the immediate problem is fixed. A standalone problem command is also available to humans or other agents without invoking a special skill.
 
-**Processing and improving** belongs in conductor-retrospective, invoked when the user wants reports reviewed. It reads the reports in scope, groups patterns, cites observations, proposes changes to the workflow, and records what it processed. In review-only mode it produces findings. When the user asks it to fix the workflow, it creates or links improvement tickets, claims the work, changes the relevant tooling/instructions/process within that authorization, validates the change, and records the outcome. Routine authorized edits do not need another permission request.
+**Processing and improving** uses two cooperating skills. conductor-retrospective performs bounded analysis, distinguishes observed facts from inferred causes, groups reports, records coverage, and proposes evidence-backed remedies. conductor-workflow-improver is a managed agent that watches new reports and follow-ups, invokes that analysis when useful, and chooses immediate preparation, milestone deferral, or observation with a revisit trigger.
 
-The retrospective must distinguish observed facts from inferred causes. It may conclude that evidence is insufficient. A workflow improvement can be delivered while effectiveness is still unverified; retain later recurrence evidence rather than treating closure as proof of success. Do not silently broaden a review request into changes.
+The improver creates or links draft tickets under a persistent Workflow Improvements epic. The main orchestrator prepares, prioritizes, authorizes, and dispatches those tickets through the shared worker queue. The improver does not spawn its own pool. Independent validation checks both delivery and later effectiveness; closure alone does not prove the workflow improved. Preserve original reports, decisions, later additions, and recurrence evidence.
 
-Initially, report processing uses exported problems, ordinary improvement tickets, and a linked Markdown review. Dedicated review tables, coverage dashboards, and automatic grouping can follow when real usage needs them.
+Initially, bounded retrospectives can use the tracer's problem list, ordinary improvement tickets, and a linked Markdown review. Reliable watching requires persisted coverage, idempotent ticket links, explicit deferral, and restart reconciliation. Do not advertise that runtime until those operations ship. See the team contract for rollout boundaries and the dependency graph.
 
 ## Skills versus always-loaded instructions
 
@@ -38,14 +40,16 @@ Initially, report processing uses exported problems, ordinary improvement ticket
 | --- | --- |
 | User-level bootstrap | One small discovery instruction and routing to conductor-work |
 | conductor-work skill | Context, explicit sessions, claims, updates, optional checklists, dependencies, linked plans, reporting failures, handoff and QA |
-| conductor-worker skill | Explicitly started continuous work loop: claim matching eligible tickets, run conductor-work, wait when idle, and repeat within the configured scope |
-| conductor-orchestrator skill | Explicitly started goal/epic supervision: reconcile progress and blockers, maintain actionable tickets, coordinate existing workers, and start bounded workers through the host's available agent tools |
-| conductor-retrospective skill | Reading/grouping reports, evidence-backed workflow diagnosis, review/fix modes, validation and follow-through |
+| conductor-plan skill | Investigate, create draft tickets and dependencies, arrange independent critique, and prepare a versioned execution proposal |
+| conductor-worker skill | Execute one assigned ticket through conductor-work, checkpoint, release, and end; persistent polling is opt-in |
+| conductor-orchestrator skill | Reconcile required roles and approvals at startup; supervise planning, authorization, adaptive dispatch, validation, and integration |
+| conductor-workflow-improver skill | Watch scoped reports, triage urgency, invoke retrospective analysis, and feed draft improvement tickets into the shared queue |
+| conductor-retrospective skill | Bounded report analysis, coverage, diagnosis, proposed remedies, and effectiveness review |
 | Referenced skill files / CLI help | Exact commands and JSON contracts, examples, conflict recovery, troubleshooting |
 | Repository instruction files | No Conductor edits required; retain existing project-specific conventions |
 | Hooks | None initially; a narrowly scoped optional extension only when supported by actual workflow failures |
 
-Install the skills in supported user-level locations, generated from one source per skill for the two hosts. Only conductor-work is needed for the CLI tracer; add the retrospective skill when report processing works, the optional worker skill when atomic filtered claiming and release/recovery work, and the optional orchestrator after the worker is reliable and host delegation has been validated. Keep skills concise and version their examples with the executable. Do not publish instructions for commands that have not shipped.
+Install the skills in supported user-level locations, generated from one source per skill for the two hosts. Only conductor-work is needed for the CLI tracer. Add planning and retrospective skills with their supported operations, a single-job worker after gated claiming and block/release, then the managed orchestrator/improver after readiness and native delegation are validated. Atomic filtered selection is required for the optional persistent polling mode, not for an explicitly assigned single-job worker. Keep skills concise and version their examples with the executable. Do not publish instructions for commands that have not shipped.
 
 Sessions do not depend on hooks. The work skill starts or resumes an explicit session, retains its ID, and supplies it on subsequent CLI calls. Parallel agents use separate IDs even in the same directory. Host session identifiers can be used when available, but a generated ID is the portable baseline. Active claim IDs are persisted and recoverable in SQLite, without credential-cache files. Owner mutations supply session and claim IDs; state changes also supply the expected revision. Preserve request IDs on retry. Check claims and revisions in the application core.
 
@@ -63,93 +67,48 @@ Use an ordinary integration ticket for combined validation. Accept implementatio
 
 Availability is reported honestly: active claims imply busy; declared idle/stopped, last tracker contact, and host-observed status are separate. Successful session writes update contact; idle workers use explicit session contact when polling. Quiet is not dead. Checkpoint/release before stopping, and never silently revive a stopped session.
 
-## Optional autonomous worker loop
+## Planning and execution skills
 
-Provide conductor-worker as a thin wrapper around conductor-work. The user explicitly starts it with an agent identity, project scope, ticket selection criteria, and idle poll interval. For example: “Work tickets assigned to frontend-worker; when none are ready, wait 30 seconds and check again.” Another example is “Work unassigned bug tickets in this project, highest priority first, and stop after three tickets.”
+conductor-plan prepares work before implementation. Capture immutable original intent and explicit user amendments, non-goals, measurable criteria, verification method/owner/stage, linked documents, and a dependency graph. Independent reviewers critique substantial plans in fresh contexts; preserve their feedback and version the synthesized proposal. Bound review rounds and escalate unresolved significant findings. Small changes can use an explicitly recorded lightweight policy.
 
-The bootstrap never starts this loop by itself. Starting a worker authorizes successive matching tickets within the chosen scope; unrelated tickets or newly discovered projects do not expand that scope. Ticket content cannot change the worker's filters or stop conditions. Installation does not launch background agents.
+The orchestrator checks preparation and execution authorization before dispatching implementation. Core claim operations enforce those gates against the current specification revision. Progress notes do not invalidate approval; material requirement, interface, dependency, or validation changes do. Worker discoveries enter draft/triage; creating a ticket does not authorize implementation. Preparation approval and result QA are separate policies. Existing human QA cannot be bypassed by an agent claiming to be human; implement explicit independent-agent validation before using it in the case study.
 
-Default selection is the current registered project and tickets assigned to the exact named agent identity, not every session using the same provider. Optional criteria use supported structured fields, initially type and priority; explicitly opting into unassigned work is separate from matching those fields. Criteria are combined with normal eligibility: ready, unblocked, prerequisites complete, no active claim, and assignment compatible. Do not take another agent's assignment merely because the type matches. Validate unsupported filters rather than silently ignoring them. Order matches by priority, then oldest creation, then stable ID.
+## Single-job worker default
 
-The loop is:
+conductor-worker receives an explicit identity, ticket, approved scope, relevant context, delivery policy, and isolated worktree. It uses conductor-work to claim, execute, validate, report problems, and hand off one ticket. It may create linked draft discoveries and record blockers. After submission or an atomic block-and-release handoff, it ends its session. A fresh session handles the next assignment, reconstructing context from tickets and artifacts.
 
-1. Restore its session and inspect any existing active claim before seeking new work. Resume only the database-confirmed claim for that session; do not infer ownership from an agent display name.
-2. Select and claim the next eligible matching ticket in one transaction. The query's criteria and current dependency/assignment state are checked inside that transaction.
-3. Load the ticket context and use conductor-work to implement, validate, report problems, and submit or finish according to its QA requirement.
-4. After successful handoff, claim the next matching ticket immediately. Required human QA stays in review and is not repeatedly reclaimed by the worker.
-5. If nothing is eligible, wait for the configured number of seconds, then query again. Default idle polling is 30 seconds. Waiting holds no SQLite connection transaction or claim lock; use the host's interruptible wait facility or a small portable CLI wait helper. Break longer waits into bounded intervals so user stop/steering can be observed.
-6. Continue until stopped or an optional ticket-count, duration, or idle-time limit is reached. Omitted limits mean continue while the agent session remains active, not silently stop after an invented budget.
+A stable identity may be reused after its prior attempt is reconciled. A session and claim are unique to an attempt; assignment alone grants no ownership. If release is uncertain, pause and reconcile. Quiet is not proof of death. Never overwrite a previous worker's uncommitted changes as routine recovery.
 
-The CLI's atomic operation can extend the existing claim command, for example:
+The orchestrator selects concurrency from independent ready work and actual resource capacity, rather than a fixed worker count. Include reviewers, validation agents, the improver, and starting/unknown launches in applicable host limits. Allocate isolated ports/test data as well as worktrees. Release capacity only after a worker is confirmed finished, not merely after submission.
 
-```text
-conductor ticket claim --next --project APP --assigned-to frontend-worker --type bug --session SESSION_ID --json
-```
+Persistent workers are an explicit alternative when repeated spawning is impractical. They require atomic filtered claim-next, assignment/dependency/approval checks, atomic block/release, retained scope, bounded error handling, and interruptible idle polling (default 30 seconds). Empty polling holds no claim or transaction. They do not broaden scope, restart closed hosts, or become the default. Do not publish example commands before implementation.
 
-This is proposed command syntax, not an implemented command. It returns either a claim plus context references, an explicit empty-queue result, or a structured error. A claim conflict causes a fresh bounded attempt; it does not justify taking an ineligible ticket. Database/permission/authentication errors are not “no work.” Retry transient failures within a bounded budget, then surface the error and pause rather than spinning.
+## Orchestrator and team startup
 
-Work one ticket at a time per worker session. If a ticket cannot proceed, append the factual problem when relevant, record an explicit blocker and handoff, and release its claim through an atomic block-and-release operation that returns it to ready with the blocker still active. Then continue with other eligible work. This prevents the same failed ticket from being immediately reclaimed in a hot loop. If release cannot be confirmed, pause instead of abandoning the claim and moving on. A user-requested stop checkpoints and releases current work when possible; process termination uses the normal manual recovery path.
+conductor-orchestrator is explicitly started for an authorized project/epic outcome. Every start or resume runs the [startup protocol](2026-09-12-conductor-team-workflow.md#startup-and-resumption): check registration/access/capabilities, reconcile exclusive project coordination ownership, restore run scope and approval state, inspect existing children/claims/worktrees, and obtain fresh readiness acknowledgements from required roles. Registered identities and last contact are not liveness evidence.
 
-Persist the worker's identity, project/filter scope, poll interval, optional limits, and current session/claim references as small session metadata. A resume loads that scope and reconciles the existing claim before acquiring another ticket. Record tracker contact and substantive progress separately; the UI must not imply it can observe whether an agent is thinking or executing outside Conductor.
+Ensure the workflow improver is running for an improvement-enabled run. Start planning/review agents as needed; start implementation workers only for prepared, authorized, independent work. Reuse healthy children before launching replacements. Persist a unique launch intent before a host call, count unknown starts against capacity, and reconcile ambiguous results before retrying. Never hold a SQLite transaction open over a host operation. Coordination mutations are fenced against superseded ownership.
 
-This skill depends on the host keeping the agent session running and permitting wait/continuation. It does not restart a closed app, bypass host limits or permissions, or provide a durable machine scheduler. Validate the loop with the supported Codex and Claude Code hosts. If a host cannot sustain it, report the limitation; do not automatically introduce hooks, scheduled tasks, or an agent launcher.
+The main loop is prepare, authorize, dispatch, independently validate, integrate, and reconcile. Preserve substantive communication in tickets. The improver feeds proposed remedies into that loop; it does not rewrite active shared instructions or expand scope by itself. PR grouping remains independent of tickets, merges are serial, and combined validation records the exact target SHA.
 
-Acceptance: two workers with overlapping filters never own the same ticket; assignment restrictions hold; no work causes a bounded wait; a newly added matching ticket is picked up on a subsequent poll; review and blocked tickets are skipped; failed claims and revoked sessions recover correctly; stop works during idle and active work; resumed workers retain their original scope. Poll timing checks use short test intervals rather than imposing production sleeps.
+Use native host delegation only where available; no assumed control over unrelated providers. A reduced triage-only mode can record/assign work but must disclose that agents were not launched. Enable reduced operation only under the run's explicit policy; do not silently mark the team ready when a required role is unavailable.
 
-## Optional conductor-orchestrator skill
-
-The orchestrator is an agent running a supervision skill, not a persistent scheduler implemented inside the Conductor server. The user starts it with a project or epic scope, desired outcome, worker roles it may manage, and optional stop conditions. Higher-level goals use existing epics, acceptance criteria, and linked plans; do not introduce a second goals database.
-
-Example invocation: “Manage epic APP-10 toward its acceptance criteria. Keep up to two workers active, start frontend or backend workers as needed, and check every 30 seconds. Bring me blockers requiring a decision and work requiring manual QA.”
-
-Its loop is:
-
-1. Read scoped epics, criteria, dependencies, ready/claimed/review tickets, latest substantive updates, and relevant problem reports. Reconcile these with host-observed status for the workers it manages.
-2. Identify the next useful action: clarify a ticket from an approved plan, split work into children, add missing dependencies, assign eligible work, answer a worker's context question, or request human input for an unresolved decision.
-3. Reuse an existing suitable worker before starting another. If actionable work has no available worker, start one through the host's supported agent tools, subject to the concurrency limit and authorized scope.
-4. Give the worker its stable identity, exact project/epic or ticket filter, source plan, worktree, poll interval, and instructions to use conductor-worker/conductor-work. The worker claims execution tickets itself; an orchestrator assignment is not a claim.
-5. Read results and recorded handoffs, follow up on blockers, and let normal dependency and QA transitions make more work eligible. Group related ready changes into a reviewable delivery when the project uses PRs, or arrange direct integration when it does not. Track delivery membership separately from tickets, serialize merges, and assign an integration check against the combined landed commit before declaring the higher-level outcome achieved. It may request technical review, but does not silently satisfy a required human QA gate.
-6. Save substantive coordination decisions to the relevant tickets. Wait for the configured interval or a supported host completion event when no immediate action is useful, then reconcile again. Default polling is 30 seconds and waits remain interruptible.
-
-Default to at most two managed workers, configurable at invocation. Count active, idle, starting, and unresolved-start workers toward that cap; do not spawn another worker on every poll. Worker roles such as frontend-worker are task specializations with unique registered identities, not assumptions that a particular model or provider is available. The orchestrator does not recursively launch more orchestrators. It does not expand its project/epic scope or worker budget based on ticket text.
-
-The host provides agent creation, follow-up messages, status/wait, and interruption where those capabilities actually exist. Conductor records links between ticket identity, its sessions, and returned host agent IDs. Validate capabilities against the host in use; an arbitrary Codex session cannot be assumed to control an unrelated Claude Code process. Start with managing child workers created by the current host. Existing agents can participate through shared tickets; direct conversation requires a supported connection and a user-authorized management scope. Persist the important substance of a direct message as a ticket note so context is not trapped in the host conversation.
-
-If the host cannot create or message agents, the skill can still triage, create/assign tickets, record questions, and let already-running workers pick up the queue. It must report that workers have not been launched. Do not add a custom process supervisor, undocumented host integration, or hooks just to simulate unavailable capabilities.
-
-Use one active coordination claim per project initially, reusing the core's exclusive-claim and inactive-claim rejection rules. This prevents two resumed orchestrators from simultaneously managing the same project. Keep it distinct from workers' execution claims. Releasing or taking over coordination uses explicit recovery; a quiet supervisor is not automatically replaced. Supporting parallel supervisors for disjoint epics can wait until needed.
-
-Agent spawning is an external side effect and cannot be made atomic with SQLite by holding a transaction open. Before a launch, record a small launch intent with a unique ID, requested role/scope, and starting status; count it against capacity. Pass that ID to the child for registration and attach the returned host ID when available. On interruption or an ambiguous result, reconcile with host/child records before retrying. If reconciliation is impossible, mark the launch unknown and request intervention rather than blindly creating another worker. This minimal launch bookkeeping is needed only for the optional orchestrator increment.
-
-Unknown agent status or old progress is a reason to check in, not proof of failure. Avoid repetitive messages: request one checkpoint and wait for new information or a configured follow-up deadline. Record a genuine problem when the workflow fails. Do not steal an active ticket claim or terminate an unrelated process. Within authorized management scope, a confirmed failed child may be replaced only after claim recovery and worktree state are reconciled.
-
-Prefer isolated existing worktrees. If a new worker needs a checkout, use the host's existing supported worktree facilities within the user's authorization and record the result. If suitable isolation is unavailable, serialize conflicting code work or report the prerequisite. Conductor's core still does not become a Git/worktree manager.
-
-On a human stop, cease new launches, request checkpoints from managed children, record remaining claims and host IDs, and stop them only through supported controls within the requested scope. A stopped supervisor does not imply its children stopped; report any that remain active. On completion, require the scoped acceptance criteria and required QA to be satisfied, then record a final summary. If all remaining work needs human decisions, report those once and wait; do not create filler work to keep workers occupied.
-
-The orchestrator handles current project flow. conductor-retrospective handles evidence-based changes to the workflow itself. The orchestrator can link recurring problems or invoke a retrospective when that is within its authorization, but should not continuously rewrite its own operating instructions while supervising a project.
-
-Acceptance: supervise an epic with dependent frontend/backend tickets, reuse an idle worker, start a missing role without exceeding capacity, preserve shared context across messages, surface QA to the human, handle a failed worker without duplicate ownership, reconcile an interrupted launch without a duplicate child, and stop/resume without losing management scope. Test both native delegation and a no-spawn fallback; unsupported cross-host control must be explicit.
+On stop, cease new dispatch, request checkpoints, preserve unresolved ownership and host references, and report any children still active. The next authorized start reconciles that state. No hook, daemon, scheduler, or custom process supervisor is required. The full team contract defines readiness, review/approval invalidation, capacity, and improvement coverage acceptance scenarios.
 
 ## Intended installation experience
 
-Proposed commands, to be implemented:
+The tracer already installs the executable, conductor-work, and the owned user-level bootstrap. Follow the [quickstart](../../quickstart.md) for actual setup/init syntax and the current explicit remove/reinstall upgrade procedure. Later skills extend the same installer when their core operations are shipped and validated; do not install design-only command examples.
 
-1. Install the executable.
-2. Run `conductor setup --agents codex,claude` once to install skills and preview/apply the small user-level bootstrap blocks.
-3. Run `conductor init` in a repository to register it in the shared store; no instruction files are created in the repository.
-4. Start a fresh agent session and verify that it detects the registered project and uses the tracker.
-
-Setup must work with spaces in Windows paths and in noninteractive Linux environments. It is idempotent, preserves user edits, and supports uninstalling only Conductor-owned files/blocks. Use straightforward copies for skill distribution; installation should not depend on Windows symlink privileges. A small doctor command checks executable discovery, supported command/skill versions, instruction-file precedence, project registration, and database/sidecar access. Document the minimum supported host versions as they are tested.
+Preserve user edits, active instruction-file precedence, and host permission policy. Use portable file copies rather than symlinks. Validate paths with spaces on Windows and fresh sessions in each supported host. Skill updates require a documented reload/fresh-context boundary and explicit compatibility checks; installing new bytes does not update an already-running agent's context.
 
 ## Delivery and acceptance
 
 The tracer includes the work skill, bootstrap setup, registration, and a short quickstart. Validate that fresh Codex and Claude Code sessions coordinate one ticket across worktrees and append a problem without hooks or per-repository setup. An unrelated repository must stay unaffected.
 
-The next increment adds the retrospective skill and a real report-to-improvement loop. Validate that an authorized fix changes the workflow, records its evidence and result, and preserves the original report. Source instructions, command help, and tests must agree on the supported subset.
+The next skill increments follow the team contract's dependency graph: agree on core contracts; add prepared-work eligibility and independent validation; add report coverage and deferral; validate single-job workers; add managed run/launch/readiness bookkeeping; then install and validate the combined skills. Independent core slices can be developed in parallel worktrees after interfaces are fixed. A bounded retrospective can be useful before the continuous improver exists.
 
-Add the worker skill as an independently usable increment after claim recovery, eligibility filters, and atomic block/release are available. It does not require a web portal and need not delay the first Kanban board. Resolve the architecture review's initial claim/session recovery gaps before enabling unattended looping.
+These increments do not delay the first React/MUI Kanban board and require no portal. Skills ship only after the CLI operations they reference and fresh-host acceptance work. Update only owned bootstrap/skill content, preserving user changes and documenting fresh-session requirements. Test upgrades as well as first installation.
 
-Add conductor-orchestrator after the worker loop is reliable, as an optional integration increment. Prove supervision using one real epic and the current host's native delegation tools before generalizing. Neither the first CLI tracer nor the first React/MUI board waits on orchestration.
+The reading-list case study stays paused until the ideas are implemented and validated and the user approves the project and scope. Its independent observer verifies both product behavior and tracker/agent activity, including the improvement loop, without pretending agent QA is human approval.
 
-There is no mandatory adapter or hook phase. If reports later demonstrate a repeated failure that a skill/CLI change cannot reasonably address, define the smallest intervention and test that specific behavior. Do not build lifecycle automation merely because a host offers it.
+There is no mandatory adapter or hook phase. Add an intervention only for an observed failure that a smaller skill/core change cannot address.

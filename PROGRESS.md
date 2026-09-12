@@ -8,3 +8,4 @@
 | T3 · Work skill and setup | Done | setup-1 | Teach Codex and Claude Code when and how to use Conductor through a simple installation that preserves existing settings. | Fresh-session acceptance in T5 |
 | T4 · CON-1 · Combined integration | Ready for QA | coordinator-1 | Combine the separately built features and verify they work together, including when agents compete for work or stop unexpectedly. | Human review |
 | T5 · CON-2 · Fresh-session validation | Ready for QA | host-validator-1 | Package the Windows tool and verify newly started Codex and Claude agents discover it and coordinate real work across separate working copies. | Human review; Linux runtime is a later increment |
+| T6 · CON-3 · Team workflow design | Design reviewed | coordinator-1 | Define how agents plan and review work before coding, start fresh workers for independent tasks, and turn workflow problems into validated improvements. | Core/skill implementation; case study awaits approval |
