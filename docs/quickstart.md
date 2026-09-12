@@ -100,7 +100,18 @@ To stop active work normally, save progress, then release and stop. If a worker 
 
 Quiet sessions never expire automatically. A stopped session cannot resume; start a new one when appropriate. Claim/revision conflicts require a fresh read and reconciliation, not blind retries.
 
-## Uninstall integration
+## Upgrade or remove integration
+
+To upgrade the bundled skill, remove the existing owned integration and install it again from the new executable at the same stable path. In this tracer, repeating setup repairs the recorded installation; it does not automatically replace that installation with a newer bundled skill. Preview both operations and resolve any ownership conflicts before proceeding. Tracker data is retained.
+
+```powershell
+& $Conductor setup --remove --agents codex,claude --json
+& $Conductor setup --remove --agents codex,claude --apply --json
+& $Conductor setup --agents codex,claude --json
+& $Conductor setup --agents codex,claude --apply --json
+```
+
+For removal without reinstalling:
 
 ```powershell
 & $Conductor setup --remove --agents codex,claude --json

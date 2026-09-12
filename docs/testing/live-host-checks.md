@@ -6,14 +6,14 @@ Observed on Windows, 2026-09-12. This records actual checks, not planned accepta
 | --- | --- |
 | Go toolchain | Official Go 1.27.1 Windows amd64 archive downloaded; SHA-256 verified against the release manifest |
 | Codex CLI | Version 0.154.0; signed in using ChatGPT |
-| Claude Code | Version 2.1.217; reports signed out, including outside the parent execution sandbox |
+| Claude Code | Version 2.1.217; initially signed out, then authenticated successfully after the user ran `/login` |
 | Foundation binary | Built from the T0 source subsequently committed as `68ad583` |
 | Default shared-data access from parent sandbox | Correctly returned `REGISTRY_UNAVAILABLE` with the denied directory, without creating another database |
 | Approved foundation probe | SQLite open, WAL creation, persistence, reopening, and cleanup all passed in the default shared data directory |
 | Fresh Codex session, direct sandbox execution | Host refused to execute before the CLI ran; see limitation below |
 | Fresh Codex session, normal command approval | The same probe passed all five checks in the default shared directory |
 | Fresh-session automatic tracker discovery | Passed with installed build `5a247a6`: ordinary README request produced tracked work, problem reporting, submission for QA, released claim and stopped session |
-| Fresh Claude Code coordination | Not yet tested; requires sign-in |
+| Fresh Claude Code coordination | Passed with corrected installed skill: assigned HOST-2 in a separate worktree, recorded a scripting problem, submitted QA evidence and stopped its session |
 | Linux runtime | Not tested; cross-compilation alone is not runtime acceptance |
 
 The shared directory was `%LOCALAPPDATA%\Conductor`, outside all Git worktrees. The initial probe used only temporary files and cleaned them. Later dogfooding registered the Conductor project and isolated acceptance fixtures; see [tracer acceptance](tracer-acceptance.md).

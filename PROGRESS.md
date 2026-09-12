@@ -6,5 +6,5 @@
 | T1 · Tickets and claims | Done | tickets-1 | Let agents create and assign tasks, reserve work, report progress, and hand it to you for review. Recover abandoned tasks safely. | — |
 | T2 · Problem reporting | Done | reporting-1 | Record what went wrong and how it was corrected, preserving the original report for later workflow improvements. | — |
 | T3 · Work skill and setup | Done | setup-1 | Teach Codex and Claude Code when and how to use Conductor through a simple installation that preserves existing settings. | Fresh-session acceptance in T5 |
-| T4 · CON-1 · Combined integration | Final checks | integration-1 / coordinator-1 | Combine the separately built features and verify they work together, including when agents compete for work or stop unexpectedly. | Full combined test suite and release build |
-| T5 · CON-2 · Fresh-session validation | In progress | packaging-1 / coordinator | Package the Windows tool and verify newly started agents discover it and coordinate real work across separate working copies. | Integrated installation; Claude sign-in |
+| T4 · CON-1 · Combined integration | Ready for QA | coordinator-1 | Combine the separately built features and verify they work together, including when agents compete for work or stop unexpectedly. | Human review |
+| T5 · CON-2 · Fresh-session validation | Ready for QA | host-validator-1 | Package the Windows tool and verify newly started Codex and Claude agents discover it and coordinate real work across separate working copies. | Human review; Linux runtime is a later increment |
