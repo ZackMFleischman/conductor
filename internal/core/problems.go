@@ -119,9 +119,14 @@ func (s *Service) AddProblem(ctx context.Context, project, request string, input
 		var ticket *string
 		if input.TicketID != "" {
 			var id string
-			if err := c.QueryRowContext(ctx, "SELECT id FROM tickets WHERE project_id=? AND id=?", project, input.TicketID).Scan(&id); err == sql.ErrNoRows {
+			err := c.QueryRowContext(ctx, "SELECT id FROM tickets WHERE project_id=? AND id=?", project, input.TicketID).Scan(&id)
+			if err == sql.ErrNoRows {
+				err = c.QueryRowContext(ctx, "SELECT id FROM tickets WHERE project_id=? AND display_key=?", project, input.TicketID).Scan(&id)
+			}
+			if err == sql.ErrNoRows {
 				return nil, Fail("NOT_FOUND", "ticket not found")
-			} else if err != nil {
+			}
+			if err != nil {
 				return nil, err
 			}
 			ticket = &id

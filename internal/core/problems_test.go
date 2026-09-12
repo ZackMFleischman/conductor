@@ -116,9 +116,9 @@ func TestProblemRejectsStoppedAndCrossProjectReferences(t *testing.T) {
 	_, err = svc.AppendProblem(ctx, project.ID, "stopped-append", AppendProblemInput{SessionID: session.ID, ProblemID: seedReport.ID, Body: "late note"})
 	assertProblemFault(t, err, "SESSION_STOPPED")
 
-	var otherProject, otherSession, otherTicket string
+	var otherProject, otherSession, otherTicket, otherProblem string
 	_, err = st.Write(ctx, store.Request{ID: "other", Operation: "fixture", ProjectID: "fixture-scope", ActorID: "local-user", Payload: JSON(map[string]any{})}, func(c *sql.Conn) (json.RawMessage, error) {
-		otherProject, otherSession, otherTicket = UUID(), UUID(), UUID()
+		otherProject, otherSession, otherTicket, otherProblem = UUID(), UUID(), UUID(), UUID()
 		now := Now()
 		if _, e := c.ExecContext(ctx, "INSERT INTO projects(id,common_dir,prefix) VALUES(?,?,?)", otherProject, "other", "OTH"); e != nil {
 			return nil, e
@@ -133,6 +133,9 @@ func TestProblemRejectsStoppedAndCrossProjectReferences(t *testing.T) {
 		if _, e := c.ExecContext(ctx, "INSERT INTO tickets(id,project_id,display_key,title,body,created_at,updated_at) VALUES(?,?,?,?,?,?,?)", otherTicket, otherProject, "OTH-1", "t", "b", now, now); e != nil {
 			return nil, e
 		}
+		if _, e := c.ExecContext(ctx, "INSERT INTO problems(id,project_id,display_key,session_id,summary,expected,actual,created_at) VALUES(?,?,?,?,?,?,?,?)", otherProblem, otherProject, "OTH-P1", otherSession, "s", "e", "a", now); e != nil {
+			return nil, e
+		}
 		return JSON(map[string]any{}), nil
 	})
 	if err != nil {
@@ -141,6 +144,8 @@ func TestProblemRejectsStoppedAndCrossProjectReferences(t *testing.T) {
 	_, err = svc.AddProblem(ctx, project.ID, "wrong-session", AddProblemInput{SessionID: otherSession, Summary: "s", Expected: "e", Actual: "a"})
 	assertProblemFault(t, err, "NOT_FOUND")
 	_, err = svc.AddProblem(ctx, project.ID, "wrong-ticket", AddProblemInput{SessionID: active.ID, TicketID: otherTicket, Summary: "s", Expected: "e", Actual: "a"})
+	assertProblemFault(t, err, "NOT_FOUND")
+	_, err = svc.AppendProblem(ctx, project.ID, "wrong-problem", AppendProblemInput{SessionID: active.ID, ProblemID: otherProblem, Body: "cross-project note"})
 	assertProblemFault(t, err, "NOT_FOUND")
 }
 

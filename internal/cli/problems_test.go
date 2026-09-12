@@ -106,3 +106,47 @@ func TestProblemInputValidationAndReadOnlyList(t *testing.T) {
 		t.Fatalf("list mutated journal mode: %q %v", mode, err)
 	}
 }
+
+func TestProblemAddAcceptsTicketDisplayKeyAndUUIDWithoutChangingRevision(t *testing.T) {
+	c := testkit.New(t)
+	project := testkit.MustData(t, c.Run("init", "--prefix", "APP", "--request", "init"))
+	projectID := testkit.String(t, project, "project_id")
+	testkit.MustData(t, c.Run("agent", "register", "--name", "dev", "--request", "agent"))
+	session := testkit.MustData(t, c.Run("session", "start", "--agent", "dev", "--request", "session"))
+	sessionID := testkit.String(t, session, "session_id")
+	ticketID := "11111111-1111-4111-8111-111111111111"
+	db, err := sql.Open("sqlite", filepath.Join(c.Home, "conductor.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	now := "2026-09-12T00:00:00Z"
+	if _, err = db.Exec("INSERT INTO tickets(id,project_id,display_key,title,body,revision,created_at,updated_at) VALUES(?,?,?,?,?,7,?,?)", ticketID, projectID, "APP-1", "ticket", "body", now, now); err != nil {
+		db.Close()
+		t.Fatal(err)
+	}
+	db.Close()
+	bodyPath := filepath.Join(t.TempDir(), "problem.json")
+	if err = os.WriteFile(bodyPath, []byte(`{"summary":"Observed issue","expected":"Expected","actual":"Actual"}`), 0600); err != nil {
+		t.Fatal(err)
+	}
+	byKey := testkit.MustData(t, c.Run("problem", "add", "--ticket", "APP-1", "--session", sessionID, "--body-file", bodyPath, "--request", "by-key"))
+	if byKey["ticket_id"] != ticketID {
+		t.Fatalf("display key was not resolved to UUID: %v", byKey)
+	}
+	byID := testkit.MustData(t, c.Run("problem", "add", "--ticket", ticketID, "--session", sessionID, "--body-file", bodyPath, "--request", "by-id"))
+	if byID["ticket_id"] != ticketID {
+		t.Fatalf("UUID selector changed: %v", byID)
+	}
+	db, err = sql.Open("sqlite", filepath.Join(c.Home, "conductor.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	var revision int
+	if err = db.QueryRow("SELECT revision FROM tickets WHERE project_id=? AND id=?", projectID, ticketID).Scan(&revision); err != nil {
+		t.Fatal(err)
+	}
+	if revision != 7 {
+		t.Fatalf("problem reports changed ticket revision: %d", revision)
+	}
+}
