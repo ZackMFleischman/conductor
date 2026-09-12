@@ -23,6 +23,8 @@ Codex uses the actual `CODEX_HOME` (normally `~/.codex`) for global instructions
 
 Start fresh host sessions after applying. Configuration is not proof of access: run `doctor --probe-write --json` inside each selected host, then confirm the read-only context bootstrap and native skill discovery. Inspect individual probe outcomes separately from configured paths. A managed sandbox may still deny database/WAL/sidecar access; report that limitation. Do not disable sandboxing or create a fallback registry. The host versions targeted for acceptance are Codex CLI 0.154.0 and Claude Code 2.1.217; synthetic setup tests alone do not establish host acceptance.
 
+On Windows, Codex CLI 0.154.0 with `[windows] sandbox = 'unelevated'` can report `cannot enforce split writable root sets directly; refusing to run unsandboxed` for a separate shared data directory. Setup does not change that sandbox mode. Use the host's normal per-command approval flow when available and permitted, then rerun the exact probe; otherwise report blocked access. Never disable protections or silently switch to a per-worktree database. Claude's live checks also require an authenticated host session.
+
 ## Register and work a ticket
 
 Run these from a Git repository/worktree. Substitute returned UUIDs and revisions for placeholders. Every database mutation needs a unique caller-retained request key; retries of one operation reuse its exact key and payload. These examples use distinct descriptive keys once; choose new keys for a new run.
