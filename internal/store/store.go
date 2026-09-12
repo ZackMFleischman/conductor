@@ -2,17 +2,24 @@ package store
 
 import (
 	"database/sql"
-	_ "embed"
+	"embed"
 	"errors"
 	"fmt"
 	_ "modernc.org/sqlite"
 	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
+	"time"
 )
 
 //go:embed schema.sql
 var schema string
+
+//go:embed migrations/*.sql
+var migrations embed.FS
+
+const SchemaVersion = 2
 
 type Store struct{ DB *sql.DB }
 
@@ -49,7 +56,7 @@ func Open(path string, create bool) (*Store, error) {
 	if err = db.QueryRow("PRAGMA user_version").Scan(&version); err != nil {
 		return fail(err)
 	}
-	if version > 1 || version < 0 {
+	if version > SchemaVersion || version < 0 {
 		return fail(fmt.Errorf("unsupported schema version %d", version))
 	}
 	if version == 0 {
@@ -62,7 +69,8 @@ func Open(path string, create bool) (*Store, error) {
 		// A concurrent initializer may have completed while we waited for the lock.
 		if err = db.QueryRow("PRAGMA user_version").Scan(&version); err == nil && version == 0 {
 			_, err = db.Exec(schema + " PRAGMA user_version=1;")
-		} else if err == nil && version != 1 {
+			version = 1
+		} else if err == nil && version != 1 && version != SchemaVersion {
 			err = fmt.Errorf("unsupported schema version %d", version)
 		}
 		if err != nil {
@@ -70,6 +78,65 @@ func Open(path string, create bool) (*Store, error) {
 			return fail(err)
 		}
 		if _, err = db.Exec("COMMIT"); err != nil {
+			return fail(err)
+		}
+	}
+	if version < SchemaVersion {
+		// VACUUM INTO makes a consistent snapshot even when the source uses WAL.
+		// Do this before the transaction; SQLite forbids VACUUM within one.
+		backup := path + ".pre-v2-" + fmt.Sprint(time.Now().UnixNano())
+		if _, err = db.Exec("VACUUM INTO '" + strings.ReplaceAll(backup, "'", "''") + "'"); err != nil {
+			return fail(fmt.Errorf("migration backup: %w", err))
+		}
+		// A table rebuild may be needed to extend CHECK constraints. Validate
+		// every foreign key before committing and restore enforcement afterward.
+		if _, err = db.Exec("PRAGMA foreign_keys=OFF"); err != nil {
+			return fail(err)
+		}
+		if _, err = db.Exec("BEGIN IMMEDIATE"); err != nil {
+			return fail(err)
+		}
+		if err = db.QueryRow("PRAGMA user_version").Scan(&version); err == nil && version == 1 {
+			var entries []string
+			entries, err = migrationNames()
+			for _, name := range entries {
+				if err != nil {
+					break
+				}
+				var b []byte
+				b, err = migrations.ReadFile("migrations/" + name)
+				if err == nil {
+					_, err = db.Exec(string(b))
+				}
+			}
+			if err == nil {
+				var rows *sql.Rows
+				rows, err = db.Query("PRAGMA foreign_key_check")
+				if err == nil {
+					if rows.Next() {
+						err = errors.New("migration violated foreign key integrity")
+					}
+					if re := rows.Err(); err == nil {
+						err = re
+					}
+					rows.Close()
+				}
+			}
+			if err == nil {
+				_, err = db.Exec("PRAGMA user_version=2")
+			}
+		} else if err == nil && version != SchemaVersion {
+			err = fmt.Errorf("unsupported schema version %d", version)
+		}
+		if err != nil {
+			db.Exec("ROLLBACK")
+			return fail(err)
+		}
+		if _, err = db.Exec("COMMIT"); err != nil {
+			db.Exec("ROLLBACK")
+			return fail(err)
+		}
+		if _, err = db.Exec("PRAGMA foreign_keys=ON"); err != nil {
 			return fail(err)
 		}
 	}
@@ -125,7 +192,7 @@ func OpenReadOnly(path string) (*Store, error) {
 	if e = db.QueryRow("PRAGMA user_version").Scan(&version); e != nil {
 		return fail(e)
 	}
-	if version != 1 {
+	if version != 1 && version != SchemaVersion {
 		return fail(fmt.Errorf("unsupported schema version %d", version))
 	}
 	var check string
@@ -140,4 +207,18 @@ func OpenReadOnly(path string) (*Store, error) {
 		return fail(e)
 	}
 	return &Store{DB: db}, nil
+}
+
+func migrationNames() ([]string, error) {
+	entries, err := migrations.ReadDir("migrations")
+	if err != nil {
+		return nil, err
+	}
+	names := make([]string, 0, len(entries))
+	for _, entry := range entries {
+		if !entry.IsDir() && strings.HasSuffix(entry.Name(), ".sql") {
+			names = append(names, entry.Name())
+		}
+	}
+	return names, nil
 }
