@@ -86,7 +86,10 @@ func Context(ctx context.Context, env Env, args []string) (any, error) {
 	defer s.DB.Close()
 	g, ge := gitctx.Resolve(env.CWD)
 	if ge != nil && f.Values["project"] == "" {
-		return map[string]any{"registered": false}, nil
+		if errors.Is(ge, gitctx.ErrNotRepository) {
+			return map[string]any{"registered": false}, nil
+		}
+		return nil, core.Fail("DISCOVERY_UNAVAILABLE", "registration unknown: "+ge.Error())
 	}
 	svc := &core.Service{Store: s}
 	p, e := svc.Project(ctx, f.Values["project"], g.CommonDir)

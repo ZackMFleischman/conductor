@@ -1,14 +1,32 @@
 package cli_test
 
 import (
+	"bytes"
+	"context"
 	"database/sql"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/ZackMFleischman/conductor/internal/cli"
 	"github.com/ZackMFleischman/conductor/internal/testkit"
 )
+
+func TestMalformedProblemInputExitCode(t *testing.T) {
+	c := testkit.New(t)
+	testkit.MustData(t, c.Run("init", "--prefix", "APP", "--request", "init"))
+	path := filepath.Join(t.TempDir(), "malformed.json")
+	if err := os.WriteFile(path, []byte(`{"summary":`), 0600); err != nil {
+		t.Fatal(err)
+	}
+	var out bytes.Buffer
+	code := cli.Run(context.Background(), cli.Env{CWD: c.CWD, Home: c.Home, Out: &out, Err: &out}, []string{"problem", "add", "--session", "unused", "--request", "bad", "--body-file", path})
+	v := testkit.Decode(t, out.Bytes())
+	if code != 2 || v["ok"] != false || v["error"].(map[string]any)["code"] != "INVALID_INPUT" {
+		t.Fatalf("malformed input must exit 2: %d %v", code, v)
+	}
+}
 
 func TestProblemReplayPreservesOriginal(t *testing.T) {
 	c := testkit.New(t)

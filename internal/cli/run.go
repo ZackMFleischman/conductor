@@ -142,11 +142,11 @@ func Run(ctx context.Context, env Env, args []string) int {
 	}
 	json.NewEncoder(env.Out).Encode(map[string]any{"ok": false, "error": f})
 	switch f.Code {
-	case "USAGE":
+	case "USAGE", "INVALID_INPUT":
 		return 2
 	case "NOT_FOUND":
 		return 4
-	case "REGISTRY_UNAVAILABLE", "STORAGE_ERROR":
+	case "REGISTRY_UNAVAILABLE", "STORAGE_ERROR", "DISCOVERY_UNAVAILABLE":
 		return 5
 	default:
 		return 3
