@@ -77,12 +77,16 @@ func TestConcurrentNotesCompose(t *testing.T) {
 	cl := testkit.String(t, ok(t, a, "ticket", "claim", id, "--session", s, "--expect-revision", "1", "--request", "claim"), "claim_id")
 	start := make(chan struct{})
 	done := make(chan int, 8)
+	wantBodies := map[string]int{}
 	for i := range 8 {
-		go func(i int) {
+		text := fmt.Sprintf("progress from contender %d", i)
+		wantBodies[text] = 1
+		path := file(t, text)
+		go func(i int, path string) {
 			<-start
-			_, code := a.Process("ticket", "note", id, "--session", s, "--claim", cl, "--body-file", body, "--request", fmt.Sprintf("note-%d", i))
+			_, code := a.Process("ticket", "note", id, "--session", s, "--claim", cl, "--body-file", path, "--request", fmt.Sprintf("note-%d", i))
 			done <- code
-		}(i)
+		}(i, path)
 	}
 	close(start)
 	for range 8 {
@@ -93,8 +97,23 @@ func TestConcurrentNotesCompose(t *testing.T) {
 	if n := count(t, c, "SELECT count(*) FROM events WHERE ticket_id=? AND kind='ticket.note'", id); n != 8 {
 		t.Fatal(n)
 	}
-	if v := ok(t, c, "ticket", "show", id); testkit.Number(t, v, "revision") != 10 {
+	v := ok(t, c, "ticket", "show", id)
+	if testkit.Number(t, v, "revision") != 10 {
 		t.Fatal(v)
+	}
+	gotBodies := map[string]int{}
+	for _, raw := range v["events"].([]any) {
+		event := raw.(map[string]any)
+		if event["kind"] != "ticket.note" {
+			continue
+		}
+		gotBodies[testkit.String(t, event, "body")]++
+		if event["actor_id"] != s {
+			t.Fatal("note attributed to wrong session", event)
+		}
+	}
+	if !reflect.DeepEqual(gotBodies, wantBodies) {
+		t.Fatal("persisted note bodies differ", gotBodies, wantBodies)
 	}
 }
 
@@ -103,7 +122,7 @@ func TestProblemAppendsPreserveReportAndTicket(t *testing.T) {
 	ok(t, c, "agent", "register", "--name", "worker", "--request", "agent")
 	s1, s2 := session(t, a, "worker", "s1"), session(t, b, "worker", "s2")
 	id := testkit.String(t, ok(t, c, "ticket", "create", "--title", "problem association", "--body-file", file(t, "immutable revision"), "--request", "ticket"), "id")
-	problem := ok(t, a, "problem", "add", "--ticket", id, "--session", s1, "--body-file", file(t, `{"summary":"workflow failure","expected":"single owner","actual":"stale contact"}`), "--request", "problem")
+	problem := ok(t, a, "problem", "add", "--ticket", id, "--session", s1, "--body-file", file(t, `{"summary":"workflow failure","expected":"single owner","actual":"stale contact","correction":"explicit recovery","evidence":"observed stale claim"}`), "--request", "problem")
 	pid := testkit.String(t, problem, "id")
 	type response struct {
 		v    map[string]any
@@ -111,11 +130,11 @@ func TestProblemAppendsPreserveReportAndTicket(t *testing.T) {
 	}
 	start := make(chan struct{})
 	done := make(chan response, 2)
-	note := file(t, "observed correction with evidence")
+	notes := []string{file(t, "first session correction"), file(t, "second session evidence")}
 	for i, cli := range []testkit.CLI{a, b} {
 		go func(i int, cli testkit.CLI) {
 			<-start
-			v, code := cli.Process("problem", "append", pid, "--session", []string{s1, s2}[i], "--body-file", note, "--request", fmt.Sprintf("append%d", i))
+			v, code := cli.Process("problem", "append", pid, "--session", []string{s1, s2}[i], "--body-file", notes[i], "--request", fmt.Sprintf("append%d", i))
 			done <- response{v, code}
 		}(i, cli)
 	}
@@ -131,7 +150,7 @@ func TestProblemAppendsPreserveReportAndTicket(t *testing.T) {
 	if !reflect.DeepEqual(before, after) {
 		t.Fatal("problem list changed session contact", before, after)
 	}
-	ok(t, a, "problem", "append", pid, "--session", s1, "--body-file", note, "--request", "append0")
+	ok(t, a, "problem", "append", pid, "--session", s1, "--body-file", notes[0], "--request", "append0")
 	if !reflect.DeepEqual(list, ok(t, c, "problem", "list")) {
 		t.Fatal("append replay duplicated or changed report")
 	}
@@ -142,6 +161,27 @@ func TestProblemAppendsPreserveReportAndTicket(t *testing.T) {
 	report := items[0].(map[string]any)
 	if report["summary"] != "workflow failure" || report["expected"] != "single owner" || report["actual"] != "stale contact" || len(report["notes"].([]any)) != 2 {
 		t.Fatal(report)
+	}
+	for _, key := range []string{"id", "project_id", "display_key", "ticket_id", "session_id", "summary", "expected", "actual", "correction", "evidence", "created_at"} {
+		if !reflect.DeepEqual(report[key], problem[key]) {
+			t.Fatalf("initial %s changed: %v -> %v", key, problem[key], report[key])
+		}
+	}
+	if report["correction"] != "explicit recovery" || report["evidence"] != "observed stale claim" {
+		t.Fatal(report)
+	}
+	wantAuthors := map[string]string{"first session correction": s1, "second session evidence": s2}
+	gotBodies := map[string]int{}
+	for _, raw := range report["notes"].([]any) {
+		note := raw.(map[string]any)
+		body := testkit.String(t, note, "body")
+		gotBodies[body]++
+		if author, found := wantAuthors[body]; !found || note["session_id"] != author {
+			t.Fatal("unexpected problem body or author", note)
+		}
+	}
+	if !reflect.DeepEqual(gotBodies, map[string]int{"first session correction": 1, "second session evidence": 1}) {
+		t.Fatal("problem body multiset differs", gotBodies)
 	}
 	if v := ok(t, c, "ticket", "show", id); testkit.Number(t, v, "revision") != 1 {
 		t.Fatal("problem changed ticket revision", v)

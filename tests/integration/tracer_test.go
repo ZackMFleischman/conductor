@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/ZackMFleischman/conductor/internal/store"
 	"github.com/ZackMFleischman/conductor/internal/testkit"
@@ -124,15 +125,40 @@ func TestWorkflowAndSessionHonesty(t *testing.T) {
 	}
 	idle := ok(t, a, "session", "idle", "--session", s1, "--request", "idle")
 	stopped := ok(t, b, "session", "stop", "--session", s2, "--request", "stop")
-	for _, v := range []map[string]any{idle, stopped} {
-		if v["busy"] != false || v["process_liveness"] != "unknown" || v["last_seen_at"] == "" {
+	for i, v := range []map[string]any{idle, stopped} {
+		if v["busy"] != false || v["process_liveness"] != "unknown" || v["declared_state"] != []string{"idle", "stopped"}[i] {
 			t.Fatal(v)
+		}
+		contact := testkit.String(t, v, "last_seen_at")
+		if parsed, err := time.Parse(time.RFC3339Nano, contact); err != nil || parsed.IsZero() {
+			t.Fatalf("invalid contact %q: %v", contact, err)
 		}
 	}
 	before := ok(t, c, "agent", "list")
 	after := ok(t, c, "agent", "list")
 	if !reflect.DeepEqual(before, after) {
 		t.Fatal("read changed session contact", before, after)
+	}
+	wantSessions := map[string]map[string]any{s1: idle, s2: stopped}
+	found := map[string]bool{}
+	for _, rawAgent := range after["agents"].([]any) {
+		for _, rawSession := range rawAgent.(map[string]any)["sessions"].([]any) {
+			persisted := rawSession.(map[string]any)
+			id := testkit.String(t, persisted, "session_id")
+			want, exists := wantSessions[id]
+			if !exists {
+				continue
+			}
+			found[id] = true
+			for _, key := range []string{"declared_state", "last_seen_at", "busy", "process_liveness"} {
+				if !reflect.DeepEqual(persisted[key], want[key]) {
+					t.Fatalf("session %s did not persist %s: %v", id, key, persisted)
+				}
+			}
+		}
+	}
+	if len(found) != 2 {
+		t.Fatal("expected both sessions in fresh agent list", after)
 	}
 	clone := c
 	clone.CWD = filepath.Join(t.TempDir(), "clone")
