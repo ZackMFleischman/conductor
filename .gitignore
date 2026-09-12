@@ -1,0 +1,8 @@
+.worktrees/
+.tools/
+.superpowers/
+dist/
+*.db
+*.db-shm
+*.db-wal
+*.exe
