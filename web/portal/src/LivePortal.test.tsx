@@ -1,0 +1,123 @@
+import { act, render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import { LivePortal } from './LivePortal';
+
+class Stream extends EventTarget {
+  static all: Stream[] = [];
+  closed = false;
+  constructor(public url: string) { super(); Stream.all.push(this); }
+  close() { this.closed = true; }
+  emit(type: string, data = '{"revision":"new"}') { this.dispatchEvent(new MessageEvent(type, { data })); }
+}
+const project = (id: string) => ({ id, name: id, description: '' });
+const snapshot = (id: string, title: string) => ({ revision: 'r1', project: project(id), tickets: [{ id: 't', key: 'A-1', title, description: 'Description', status: 'ready', assignee: null, blockers: [], ancestors: [] }] });
+const response = (body: unknown) => new Response(JSON.stringify(body), { status: 200 });
+let fetcher: ReturnType<typeof vi.fn>;
+beforeEach(() => {
+  Stream.all = [];
+  vi.stubGlobal('EventSource', Stream);
+  fetcher = vi.fn(async (url: string) => response(url === '/api/v1/projects' ? { projects: [project('a'), project('b')] } : snapshot(url.includes('/a/') ? 'a' : 'b', 'First')));
+  vi.stubGlobal('fetch', fetcher);
+});
+afterEach(() => { vi.unstubAllGlobals(); vi.useRealTimers(); });
+
+it('loads live projects and refetches on invalidation and reconnect', async () => {
+  render(<LivePortal />);
+  expect(await screen.findByText('First')).toBeInTheDocument();
+  expect(screen.queryByText('Fixture data')).not.toBeInTheDocument();
+  expect(Stream.all[0].url).toBe('/api/v1/projects/a/events');
+  fetcher.mockResolvedValue(response(snapshot('a', 'Updated')));
+  await act(async () => { Stream.all[0].emit('open'); Stream.all[0].emit('board.changed'); });
+  expect(await screen.findByText('Updated')).toBeInTheDocument();
+  await act(async () => { Stream.all[0].emit('error'); });
+  expect(screen.getByRole('alert')).toHaveTextContent(/stale/i);
+  fetcher.mockResolvedValue(response(snapshot('a', 'Reconnected')));
+  await act(async () => { Stream.all[0].emit('open'); });
+  expect(screen.getByRole('alert')).toHaveTextContent(/stale/i);
+  await act(async () => { Stream.all[0].emit('board.changed'); });
+  expect(await screen.findByText('Reconnected')).toBeInTheDocument();
+  expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+});
+
+it('reopens after a server error and cancels scheduled reconnects on unmount', async () => {
+  const { unmount } = render(<LivePortal />);
+  await screen.findByText('First');
+  vi.useFakeTimers();
+  await act(async () => { Stream.all[0].emit('board.error'); });
+  expect(Stream.all[0].closed).toBe(true);
+  await act(async () => { vi.advanceTimersByTime(3000); });
+  expect(Stream.all).toHaveLength(2);
+  expect(screen.getByRole('alert')).toHaveTextContent(/stale/i);
+  await act(async () => { Stream.all[1].emit('board.error'); });
+  unmount();
+  await act(async () => { vi.advanceTimersByTime(6000); });
+  expect(Stream.all).toHaveLength(2);
+});
+
+it('coalesces refreshes and never lets an obsolete snapshot overwrite the latest data', async () => {
+  render(<LivePortal />);
+  await screen.findByText('First');
+  let finish!: (response: Response) => void;
+  fetcher.mockImplementationOnce(() => new Promise<Response>(resolve => { finish = resolve; }));
+  await act(async () => { Stream.all[0].emit('board.changed'); });
+  const count = fetcher.mock.calls.length;
+  await act(async () => { Stream.all[0].emit('board.changed'); Stream.all[0].emit('board.changed'); });
+  expect(fetcher.mock.calls.length).toBe(count);
+  fetcher.mockResolvedValue(response(snapshot('a', 'Latest')));
+  await act(async () => { finish(response(snapshot('a', 'Obsolete'))); });
+  expect(await screen.findByText('Latest')).toBeInTheDocument();
+  expect(screen.queryByText('Obsolete')).not.toBeInTheDocument();
+  expect(fetcher.mock.calls.length).toBe(count + 1);
+});
+
+it('aborts old project loads and removes its stream listeners on switch and unmount', async () => {
+  const user = userEvent.setup();
+  const { unmount } = render(<LivePortal />);
+  await screen.findByText('First');
+  let finish!: (response: Response) => void;
+  fetcher.mockImplementationOnce(() => new Promise<Response>(resolve => { finish = resolve; }));
+  await act(async () => { Stream.all[0].emit('board.changed'); });
+  const oldSignal = fetcher.mock.calls.at(-1)![1].signal as AbortSignal;
+  await user.selectOptions(screen.getByRole('combobox', { name: 'Project' }), 'b');
+  await screen.findByText('First');
+  expect(oldSignal.aborted).toBe(true);
+  expect(Stream.all[0].closed).toBe(true);
+  const count = fetcher.mock.calls.length;
+  await act(async () => { Stream.all[0].emit('board.changed'); finish(response(snapshot('a', 'Obsolete'))); });
+  expect(fetcher.mock.calls.length).toBe(count);
+  expect(screen.queryByText('Obsolete')).not.toBeInTheDocument();
+  const signal = fetcher.mock.calls.at(-1)![1].signal as AbortSignal;
+  unmount();
+  expect(signal.aborted).toBe(true);
+  expect(Stream.all[1].closed).toBe(true);
+});
+
+it('retains stale data on refresh failure and supports explicit retry after board.error', async () => {
+  const user = userEvent.setup();
+  render(<LivePortal />);
+  await screen.findByText('First');
+  fetcher.mockRejectedValue(new Error('private path'));
+  await act(async () => { Stream.all[0].emit('board.changed'); });
+  expect(await screen.findByRole('alert')).toHaveTextContent(/stale/i);
+  expect(screen.getByText('First')).toBeInTheDocument();
+  expect(screen.queryByText('private path')).not.toBeInTheDocument();
+  await act(async () => { Stream.all[0].emit('board.error', '{"code":"STORE_UNAVAILABLE"}'); });
+  expect(Stream.all[0].closed).toBe(true);
+  fetcher.mockResolvedValue(response(snapshot('a', 'Recovered')));
+  await user.click(screen.getByRole('button', { name: 'Try again' }));
+  expect(await screen.findByText('Recovered')).toBeInTheDocument();
+  expect(Stream.all).toHaveLength(2);
+});
+
+it('shows safe project errors, retries, and distinguishes an empty registry', async () => {
+  const user = userEvent.setup();
+  fetcher.mockRejectedValue(new Error('private path'));
+  render(<LivePortal />);
+  expect(await screen.findByRole('alert')).toHaveTextContent(/projects/i);
+  expect(screen.queryByText('Fixture data')).not.toBeInTheDocument();
+  fetcher.mockResolvedValue(response({ projects: [] }));
+  await user.click(screen.getByRole('button', { name: 'Try again' }));
+  await waitFor(() => expect(screen.getByText('No projects registered')).toBeInTheDocument());
+  expect(Stream.all).toHaveLength(0);
+});

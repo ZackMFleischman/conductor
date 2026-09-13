@@ -17,7 +17,9 @@ export interface BoardSnapshot {
   project: { id: string; name: string; description: string };
   tickets: BoardTicket[];
 }
+export type ConnectionStatus = 'connecting' | 'connected' | 'disconnected' | 'error';
 export interface BoardSource {
   readonly kind: 'fixture' | 'live';
   load(signal?: AbortSignal): Promise<BoardSnapshot>;
+  subscribe?(onChange: () => void, onStatus: (status: ConnectionStatus) => void): () => void;
 }

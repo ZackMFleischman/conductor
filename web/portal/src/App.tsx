@@ -1,38 +1,66 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { Alert, Box, Button, Chip, CircularProgress, CssBaseline, FormControl, InputAdornment, NativeSelect, Paper, Stack, TextField, ThemeProvider, Typography } from '@mui/material';
 import AccountTreeOutlined from '@mui/icons-material/AccountTreeOutlined';
 import SearchOutlined from '@mui/icons-material/SearchOutlined';
 import VisibilityOutlined from '@mui/icons-material/VisibilityOutlined';
 import ScienceOutlined from '@mui/icons-material/ScienceOutlined';
-import type { BoardSnapshot, BoardSource } from './board';
+import type { BoardSnapshot, BoardSource, ConnectionStatus } from './board';
 import { KanbanBoard } from './components/KanbanBoard';
 import { findSearchMatches } from './search';
 import { theme } from './theme';
 
-type LoadState = { status: 'loading' } | { status: 'error' } | { status: 'ready'; board: BoardSnapshot };
+type LoadState = { status: 'loading' | 'error' | 'ready'; board?: BoardSnapshot };
 
-export function App({ source }: { source: BoardSource }) {
+export function App({ source, projectControl }: { source: BoardSource; projectControl?: ReactNode }) {
   const [state, setState] = useState<LoadState>({ status: 'loading' });
   const [attempt, setAttempt] = useState(0);
   const [query, setQuery] = useState('');
   const [assignee, setAssignee] = useState('all');
   const [group, setGroup] = useState('all');
+  const [connection, setConnection] = useState<ConnectionStatus>('connecting');
+  const [refreshing, setRefreshing] = useState(false);
+  const [stale, setStale] = useState(false);
   useEffect(() => {
     const controller = new AbortController();
     setState({ status: 'loading' });
-    const load = async () => {
-      try {
-        const board = await source.load(controller.signal);
-        if (!controller.signal.aborted) setState({ status: 'ready', board });
-      } catch {
-        if (!controller.signal.aborted) setState({ status: 'error' });
+    setConnection('connecting');
+    setStale(false);
+    let transport: ConnectionStatus = 'connecting';
+    let running = false;
+    let pending = false;
+    const refresh = async () => {
+      pending = true;
+      if (running) return;
+      running = true;
+      setRefreshing(true);
+      while (pending && !controller.signal.aborted) {
+        pending = false;
+        try {
+          const board = await source.load(controller.signal);
+          if (!controller.signal.aborted && !pending) {
+            setState({ status: 'ready', board });
+            if (transport === 'connected') setStale(false);
+          }
+        } catch {
+          if (!controller.signal.aborted && !pending) setState(previous => ({ status: 'error', board: previous.board }));
+        }
       }
+      running = false;
+      if (!controller.signal.aborted) setRefreshing(false);
     };
-    void load();
-    return () => controller.abort();
+    void refresh();
+    let unsubscribe: (() => void) | undefined;
+    try {
+      unsubscribe = source.subscribe?.(() => { void refresh(); }, status => {
+        transport = status;
+        setConnection(status);
+        if (status === 'error' || status === 'disconnected') setStale(true);
+      });
+    } catch { setConnection('error'); setStale(true); }
+    return () => { controller.abort(); unsubscribe?.(); };
   }, [source, attempt]);
 
-  const board = state.status === 'ready' ? state.board : undefined;
+  const board = state.board;
   const tickets = board?.tickets ?? [];
   const term = query.trim();
   const filtered = tickets.filter(ticket => {
@@ -62,12 +90,14 @@ export function App({ source }: { source: BoardSource }) {
       <Stack direction="row" sx={{ alignItems: 'center', flexWrap: 'wrap', gap: 1.5, mb: 1.5 }}>
         <Typography component="h1" variant="h1">Work board</Typography>
         <Chip icon={<ScienceOutlined />} label={source.kind === 'fixture' ? 'Fixture data' : 'Live data'} size="small" sx={{ bgcolor: '#e1eee7', color: '#285d4f', fontSize: '0.7rem' }} />
+        {projectControl}
+        {source.subscribe && <Typography role="status" variant="caption" color="text.secondary">{connection === 'disconnected' || connection === 'error' ? 'Disconnected' : refreshing ? 'Refreshing…' : connection === 'connecting' ? 'Connecting…' : 'Connected'}</Typography>}
         {board && <Stack direction="row" sx={{ ml: { sm: 'auto' }, gap: 2, flexWrap: 'wrap' }}>
           {[[tickets.length, 'tickets'], [tickets.filter(t => t.status === 'in_progress').length, 'in progress'], [tickets.filter(t => t.status === 'blocked').length, 'blocked'], [tickets.filter(t => t.status === 'review').length, 'in review']].map(([count, label]) => <Typography key={label} variant="caption" color="text.secondary"><Box component="span" sx={{ fontWeight: 700, color: 'text.primary', mr: 0.5 }}>{count}</Box>{' '}{label}</Typography>)}
         </Stack>}
       </Stack>
       {state.status === 'loading' && <Stack role="status" direction="row" spacing={2} sx={{ py: 8, justifyContent: 'center' }}><CircularProgress size={20} /><Typography>Loading board…</Typography></Stack>}
-      {state.status === 'error' && <Alert severity="error" sx={{ mt: 3 }} action={<Button color="inherit" onClick={() => setAttempt(a => a + 1)}>Try again</Button>}>Could not load the board. Please try again.</Alert>}
+      {(state.status === 'error' || stale) && <Alert severity={board ? 'warning' : 'error'} sx={{ mb: 2 }} action={<Button color="inherit" onClick={() => setAttempt(a => a + 1)}>Try again</Button>}>{board ? 'Live data is stale. Updates are unavailable; reconnecting or retrying will refresh the board.' : 'Could not load the board. Please try again.'}</Alert>}
       {board && <>
         <Stack direction="row" sx={{ gap: 1, alignItems: 'center', flexWrap: 'wrap', mb: 1.5 }}>
           <TextField hiddenLabel size="small" placeholder="Search tickets…" value={query} onChange={e => setQuery(e.target.value)} sx={{ width: { sm: 280 }, flex: { xs: 1, sm: 'none' }, minWidth: 150, bgcolor: '#fff', '& .MuiInputBase-root': { height: 32, fontSize: '0.8rem' } }} slotProps={{ htmlInput: { 'aria-label': 'Search tickets' }, input: { startAdornment: <InputAdornment position="start"><SearchOutlined sx={{ fontSize: 17 }} /></InputAdornment> } }} />
