@@ -59,7 +59,7 @@ Integration handoff: validate these source commits together in APP-14 after land
 
 PRs are optional, may group multiple coherent tickets, and do not determine ticket state. Read the project's delivery preference; do not infer merge permission from assignment. Implementation acceptance can cover tested worktree commits when its criteria say so.
 
-Use a separate ordinary integration ticket, such as APP-14, for combined behavior. Its evidence records included source commits, exact landed target SHA (including squash/rebase results), validation commands and outcomes, and combined manual QA. Compare the current target SHA with that recorded SHA before treating the evidence as current; a newer target needs fresh validation. Do not make integration wait on implementation tickets whose criteria already wait for integration. Integration and human acceptance remain separate explicit actions.
+For a feature or bug, keep review, validation, landing, and combined behavior checks as checklist items or status on that ticket. Record included source commits, exact landed target SHA (including squash/rebase results), validation commands and outcomes, and combined manual QA there. Compare the current target SHA with that recorded SHA before treating the evidence as current; a newer target needs fresh validation. Create a separate ticket only when combined behavior is a distinct user-visible feature or defect, not merely a workflow stage. Human acceptance remains a separate explicit action where the ticket policy requires it.
 
 ## Prepared-work projects
 

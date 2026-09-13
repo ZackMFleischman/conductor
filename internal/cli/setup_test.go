@@ -60,6 +60,29 @@ func TestSetupCLI(t *testing.T) {
 		t.Fatal("owned skill remains")
 	}
 }
+
+func TestSetupInstallsWorkflowReviewGuidance(t *testing.T) {
+	root := t.TempDir()
+	t.Setenv("USERPROFILE", root)
+	t.Setenv("HOME", root)
+	t.Setenv("CODEX_HOME", filepath.Join(root, "codex"))
+	var out bytes.Buffer
+	if code := Run(context.Background(), Env{CWD: root, Home: filepath.Join(root, "data"), Out: &out}, []string{"setup", "--agents", "codex", "--apply", "--json"}); code != 0 {
+		t.Fatalf("exit %d: %s", code, &out)
+	}
+	checks := map[string]string{
+		"conductor-work":              "actual changed application",
+		"conductor-workflow-improver": "Do not defer a ready workflow remedy",
+		"conductor-orchestrator":      "unrelated product milestone",
+	}
+	for skill, want := range checks {
+		path := filepath.Join(root, ".agents", "skills", skill, "SKILL.md")
+		got, err := os.ReadFile(path)
+		if err != nil || !bytes.Contains(got, []byte(want)) {
+			t.Fatalf("installed %s lacks %q: %v", skill, want, err)
+		}
+	}
+}
 func TestSetupRejectsUsage(t *testing.T) {
 	for _, args := range [][]string{{"setup"}, {"setup", "--agents", "other"}, {"setup", "--agents", "codex", "extra"}, {"setup", "--agents", "codex", "--unknown"}, {"setup", "--agents", "codex", "--project", "x"}} {
 		var out bytes.Buffer
