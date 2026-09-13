@@ -28,3 +28,5 @@ npm run preview -- --port 4174 --strictPort
 - `src/theme.ts`: MUI theme and typography.
 
 The composition root in `src/main.tsx` chooses the fixture adapter. No UI component reads CLI output or SQLite. A live adapter requires the separately tracked contract agreement in CON-13 / CON-4. Markdown details and linked-artifact rendering remain later increments. See [API contract](api-contract.md), [design](design.md) and [verification](verification.md).
+
+Latest follow-up: [CON-17 density and search verification](density-verification.md). The board now has 12 fictional tickets and highlights literal search matches; historical first-increment evidence retains the original eight-ticket observations.
