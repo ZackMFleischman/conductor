@@ -64,3 +64,5 @@ Use a separate ordinary integration ticket, such as APP-14, for combined behavio
 ## Prepared-work projects
 
 Read [workflow commands](workflow-commands.md) for draft preparation, versioned authorization, dependencies, blocking, and non-human validation. The human accept/reject examples above apply only to tickets whose recorded policy requires or permits those explicit user actions. Managed startup uses [team commands](team-commands.md); problem processing uses [retrospective commands](retrospective-commands.md).
+
+Read the bootstrap before discovery and use its installation access preference. An established Windows Codex `require_escalated` preference applies to every invocation of that exact executable/home, including version and access probes. A successful call does not change the next process's permissions. For version only, use `--home DATA_HOME --version` without `--project`. Preserve the configured home on access failures; `REGISTRY_UNAVAILABLE` or `DISCOVERY_UNAVAILABLE` is unknown registration, never permission to create a fallback store.

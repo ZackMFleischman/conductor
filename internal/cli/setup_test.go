@@ -155,3 +155,32 @@ func TestSetupReportsWindowsApprovalWithoutExposingConfig(t *testing.T) {
 		}
 	}
 }
+
+func TestSetupCommandAccessCLI(t *testing.T) {
+	root := t.TempDir()
+	t.Setenv("USERPROFILE", root)
+	t.Setenv("HOME", root)
+	t.Setenv("CODEX_HOME", filepath.Join(root, "codex"))
+	var out bytes.Buffer
+	args := []string{"setup", "--agents", "codex", "--command-access", "require_escalated", "--apply", "--json"}
+	code := Run(context.Background(), Env{CWD: root, Home: filepath.Join(root, "data"), Out: &out}, args)
+	if runtime.GOOS != "windows" {
+		if code == 0 {
+			t.Fatal("unsupported platform accepted")
+		}
+		return
+	}
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, &out)
+	}
+	b, e := os.ReadFile(filepath.Join(root, "codex", "AGENTS.md"))
+	if e != nil {
+		t.Fatal(e)
+	}
+	if bytes.Index(b, []byte("sandbox_permissions: require_escalated")) < 0 {
+		t.Fatal("CLI option not propagated")
+	}
+	if _, e = os.Stat(filepath.Join(root, "data", "conductor.db")); !os.IsNotExist(e) {
+		t.Fatal("setup touched registry")
+	}
+}
