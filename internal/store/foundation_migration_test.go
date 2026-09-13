@@ -243,3 +243,54 @@ func TestFoundationMigrationRollsBackOnError(t *testing.T) {
 		t.Fatal("v2 schema changed", e)
 	}
 }
+
+func TestFoundationMigrationSubmissionProvenance(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "submissions.db")
+	db, e := sql.Open("sqlite", path)
+	if e != nil {
+		t.Fatal(e)
+	}
+	if _, e = db.Exec(schema); e != nil {
+		t.Fatal(e)
+	}
+	for _, name := range orderedMigrations[0].files {
+		b, e := migrations.ReadFile("migrations/" + name)
+		if e != nil {
+			t.Fatal(e)
+		}
+		if _, e = db.Exec(string(b)); e != nil {
+			t.Fatal(e)
+		}
+	}
+	_, e = db.Exec(`PRAGMA user_version=2;
+ INSERT INTO projects(id,common_dir,prefix) VALUES('p','repo','P');
+ INSERT INTO agents(id,project_id,name) VALUES('a','p','A'),('b','p','B');
+ INSERT INTO sessions(id,project_id,agent_id,last_seen_at,worktree_root) VALUES('sa','p','a','now','a'),('sb','p','b','now','b');
+ INSERT INTO tickets(id,project_id,display_key,title,body,state,summary,evidence,qa,created_at,updated_at) VALUES('t','p','P-1','work','scope','in_progress','latest','latest-proof','steps','created','claim-B'),('unknown','p','P-2','unknown','scope','review','orphan snapshot','proof','steps','created','other-edit');
+ INSERT INTO claims(id,project_id,ticket_id,session_id,created_at,released_at) VALUES('old','p','t','sa','claim-A','submit-A'),('new','p','t','sb','claim-B',NULL);
+ INSERT INTO events(id,project_id,ticket_id,actor_id,kind,payload,created_at) VALUES('first','p','t','sa','ticket.submit','{"Summary":"earlier","Evidence":"earlier-proof","QA":"steps","Commit":"c1"}','submit-first'),('second','p','t','sa','ticket.submit','{"Summary":"latest","Evidence":"latest-proof","QA":"steps","Commit":"c2"}','submit-A'),('reject','p','t','local-user','ticket.reject','{}','reject-A');`)
+	if e != nil {
+		t.Fatal(e)
+	}
+	db.Close()
+	st, e := Open(path, false)
+	if e != nil {
+		t.Fatal(e)
+	}
+	defer st.DB.Close()
+	var session, at, commit string
+	e = st.DB.QueryRow("SELECT session_id,created_at,commit_id FROM ticket_submissions WHERE ticket_id='t' AND summary='latest'").Scan(&session, &at, &commit)
+	if e != nil || session != "sa" || at != "submit-A" || commit != "c2" {
+		t.Fatalf("submission misattributed: session=%q time=%q commit=%q: %v", session, at, commit, e)
+	}
+	var n int
+	st.DB.QueryRow("SELECT count(*) FROM ticket_submissions WHERE ticket_id='t'").Scan(&n)
+	if n != 2 {
+		t.Fatalf("lost submission history: %d", n)
+	}
+	var unknown sql.NullString
+	e = st.DB.QueryRow("SELECT session_id,created_at FROM ticket_submissions WHERE ticket_id='unknown'").Scan(&unknown, &at)
+	if e != nil || unknown.Valid || at != "" {
+		t.Fatalf("invented provenance: %v %q %v", unknown, at, e)
+	}
+}
