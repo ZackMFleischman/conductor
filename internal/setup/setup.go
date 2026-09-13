@@ -19,6 +19,7 @@ import (
 )
 
 type Options struct {
+	CommandAccess        string // Empty preserves the installed preference; otherwise host-default or require_escalated.
 	Agents               []string
 	Executable, DataHome string
 	Remove               bool
@@ -120,12 +121,13 @@ type record struct {
 	Previous []byte `json:"previous,omitempty"`
 }
 type manifest struct {
-	Version    int      `json:"version"`
-	Executable string   `json:"executable"`
-	DataHome   string   `json:"data_home"`
-	Records    []record `json:"records"`
-	Removing   bool     `json:"removing,omitempty"`
-	Removal    []record `json:"removal,omitempty"`
+	CommandAccess string   `json:"command_access,omitempty"`
+	Version       int      `json:"version"`
+	Executable    string   `json:"executable"`
+	DataHome      string   `json:"data_home"`
+	Records       []record `json:"records"`
+	Removing      bool     `json:"removing,omitempty"`
+	Removal       []record `json:"removal,omitempty"`
 }
 
 func digest(b []byte) string {
@@ -190,6 +192,9 @@ func edit(path string, b, a []byte, ownership string) Edit {
 // Plan is read-only. A per-host journal is installed first so interrupted writes
 // can be repaired from the exact before/after fragments on a later invocation.
 func Plan(o Options) ([]Edit, error) {
+	if err := validateCommandAccess(o); err != nil {
+		return nil, err
+	}
 	if len(o.Agents) == 0 {
 		return nil, fmt.Errorf("select codex and/or claude")
 	}
@@ -266,7 +271,7 @@ func Plan(o Options) ([]Edit, error) {
 			if o.Remove {
 				continue
 			}
-			m = manifest{Version: 1, Executable: o.Executable, DataHome: o.DataHome}
+			m = manifest{Version: 1, Executable: o.Executable, DataHome: o.DataHome, CommandAccess: o.CommandAccess}
 			if e = buildRecords(&m, o, host); e != nil {
 				return nil, e
 			}
@@ -340,11 +345,20 @@ func Plan(o Options) ([]Edit, error) {
 					return nil, fmt.Errorf("owned fragment conflict: %s", r.Path)
 				}
 			case "append":
+				if err := validateBootstrap(b, r); err != nil {
+					return nil, err
+				}
 				if bytes.Count(b, r.After) == 1 {
 					if o.Remove {
 						a = bytes.Replace(b, r.After, nil, 1)
 					} else {
 						a = b
+					}
+				} else if len(r.Previous) > 0 && bytes.Count(b, r.Previous) == 1 {
+					if o.Remove {
+						a = bytes.Replace(b, r.Previous, nil, 1)
+					} else {
+						a = bytes.Replace(b, r.Previous, r.After, 1)
 					}
 				} else if digest(b) == digest(r.Before) {
 					if o.Remove {
@@ -435,7 +449,7 @@ func buildRecords(m *manifest, o Options, host string) error {
 	if bytes.Contains(b, []byte("<!-- conductor:")) {
 		return fmt.Errorf("unowned Conductor marker: %s", instruction)
 	}
-	block := []byte("\n<!-- conductor:start -->\nBefore repository work, run the installed executable with `context --if-registered --json` and the configured `--home`.\nPowerShell: `& " + psQuote(o.Executable) + " --home " + psQuote(o.DataHome) + " context --if-registered --json`\nBash: `" + shQuote(o.Executable) + " --home " + shQuote(o.DataHome) + " context --if-registered --json`\nIf registered, use the conductor-work skill to track authorized work and report workflow problems. If registered=false, continue normally. REGISTRY_UNAVAILABLE means registration is unknown: surface the error; never initialize a fallback or claim updates were saved.\n<!-- conductor:end -->\n")
+	block := bootstrap(o, m.CommandAccess)
 	m.Records = append(m.Records, record{Path: instruction, Kind: "append", Before: b, After: block, Hash: digest(block)})
 	keys := make([]string, 0, len(o.SkillFiles))
 	for k := range o.SkillFiles {
@@ -883,4 +897,13 @@ func arrayEnd(b []byte, start int) (int, error) {
 		}
 	}
 	return 0, fmt.Errorf("unterminated array")
+}
+
+func bootstrap(o Options, access string) []byte {
+	block := []byte("\n<!-- conductor:start -->\nBefore repository work, run the installed executable with `context --if-registered --json` and the configured `--home`.\nPowerShell: `& " + psQuote(o.Executable) + " --home " + psQuote(o.DataHome) + " context --if-registered --json`\nBash: `" + shQuote(o.Executable) + " --home " + shQuote(o.DataHome) + " context --if-registered --json`\nIf registered, use the conductor-work skill to track authorized work and report workflow problems. If registered=false, continue normally. REGISTRY_UNAVAILABLE means registration is unknown: surface the error; never initialize a fallback or claim updates were saved.\n<!-- conductor:end -->\n")
+	if access == "require_escalated" {
+		rule := "Windows Codex installation preference: every exec_command invocation of " + psQuote(o.Executable) + " with --home " + psQuote(o.DataHome) + " uses sandbox_permissions: require_escalated from the outset, including discovery and version checks. Do not first retry ordinary access probes. This preference applies only to this executable/home in Windows Codex; other commands and hosts retain their own policy. It changes no host security settings and is not proof of access.\n"
+		block = bytes.Replace(block, []byte("Before repository work"), []byte(rule+"Before repository work"), 1)
+	}
+	return block
 }

@@ -53,7 +53,10 @@ func upgradeRecords(m *manifest, o Options, host string) (bool, error) {
 		keys = append(keys, k)
 	}
 	sort.Strings(keys)
-	changed := false
+	changed, err := upgradeBootstrap(m, o, host)
+	if err != nil {
+		return false, err
+	}
 	for _, key := range keys {
 		dest, err := skillDestination(key, o, host)
 		if err != nil {

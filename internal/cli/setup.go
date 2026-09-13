@@ -16,7 +16,7 @@ func init() { Register("setup", Setup) }
 
 // Setup changes only explicit user-level integration; it never opens a store.
 func Setup(ctx context.Context, env Env, args []string) (any, error) {
-	f, err := Parse(args, []string{"agents"}, []string{"apply", "remove"})
+	f, err := Parse(args, []string{"agents", "command-access"}, []string{"apply", "remove"})
 	if err != nil {
 		return nil, err
 	}
@@ -36,6 +36,9 @@ func Setup(ctx context.Context, env Env, args []string) (any, error) {
 			return nil, core.Fail("USAGE", "--agents must select codex, claude, or codex,claude once")
 		}
 		seen[a] = true
+	}
+	if value, ok := f.Values["command-access"]; ok && value != "host-default" && value != "require_escalated" {
+		return nil, core.Fail("USAGE", "--command-access must be host-default or require_escalated")
 	}
 	if err = ctx.Err(); err != nil {
 		return nil, err
@@ -86,7 +89,7 @@ func Setup(ctx context.Context, env Env, args []string) (any, error) {
 	if err != nil {
 		return nil, err
 	}
-	options := setup.Options{Agents: agents, Executable: exe, DataHome: home, Remove: f.Bools["remove"], UserHome: userHome, CodexHome: codexHome, ClaudeHome: claudeHome, SkillFiles: files}
+	options := setup.Options{CommandAccess: f.Values["command-access"], Agents: agents, Executable: exe, DataHome: home, Remove: f.Bools["remove"], UserHome: userHome, CodexHome: codexHome, ClaudeHome: claudeHome, SkillFiles: files}
 	edits, err := setup.Plan(options)
 	if err != nil {
 		return nil, setupError(err)
