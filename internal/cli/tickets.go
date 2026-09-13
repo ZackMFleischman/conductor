@@ -16,11 +16,14 @@ func Ticket(ctx context.Context, env Env, args []string) (any, error) {
 		return nil, core.Fail("USAGE", "ticket subcommand required")
 	}
 	op := args[0]
+	if op == "edit" || op == "prepare" || op == "authorize" || op == "critique" || op == "dispose" || op == "unblock" {
+		return WorkflowTicket(ctx, env, args)
+	}
 	values := []string{}
 	bools := []string{"help"}
 	switch op {
 	case "create":
-		values = []string{"title", "body-file", "assigned-to", "request"}
+		values = []string{"title", "body-file", "assigned-to", "request", "session"}
 	case "list":
 		values = []string{"state", "assigned-to", "limit", "cursor"}
 	case "show":
@@ -31,14 +34,14 @@ func Ticket(ctx context.Context, env Env, args []string) (any, error) {
 	case "note":
 		values = []string{"session", "claim", "body-file", "request"}
 	case "submit":
-		values = []string{"session", "claim", "expect-revision", "summary-file", "evidence-file", "qa-file", "request"}
+		values = []string{"session", "claim", "expect-revision", "summary-file", "evidence-file", "qa-file", "request", "commit"}
 	case "accept":
-		values = []string{"expect-revision", "request"}
+		values = []string{"expect-revision", "request", "session", "validation-file"}
 		bools = append(bools, "human")
 	case "reject":
 		values = []string{"expect-revision", "reason", "request"}
 		bools = append(bools, "human")
-	case "release":
+	case "release", "block":
 		values = []string{"session", "claim", "expect-revision", "reason", "request"}
 		bools = append(bools, "human")
 	default:
@@ -51,7 +54,7 @@ func Ticket(ctx context.Context, env Env, args []string) (any, error) {
 	if f.Bools["help"] {
 		return map[string]any{"command": "ticket " + op, "value_flags": values, "boolean_flags": bools, "limits": "title: 300 Unicode characters; each UTF-8 body: 256 KiB; request: 1–200 bytes; list: 1–100 (default 20)", "ownership": "note/submit/owner release require session and claim; human accept/reject/recovery require --human; all changes except notes require --expect-revision"}, nil
 	}
-	in := core.TicketInput{Title: f.Values["title"], AssignedAgentID: f.Values["assigned-to"], SessionID: f.Values["session"], ClaimID: f.Values["claim"], Reason: f.Values["reason"], Human: f.Bools["human"]}
+	in := core.TicketInput{Commit: f.Values["commit"], Title: f.Values["title"], AssignedAgentID: f.Values["assigned-to"], SessionID: f.Values["session"], ClaimID: f.Values["claim"], Reason: f.Values["reason"], Human: f.Bools["human"]}
 	if op == "create" || op == "list" {
 		if e = f.NoPositionals(); e != nil {
 			return nil, e
@@ -118,6 +121,13 @@ func Ticket(ctx context.Context, env Env, args []string) (any, error) {
 			return nil, e
 		}
 	}
+	if op == "accept" && f.Values["validation-file"] != "" {
+		d, err := readWorkflowBody(env, f.Values["validation-file"])
+		if err != nil {
+			return nil, err
+		}
+		in.Validation = &d
+	}
 	if op == "assign" {
 		if e = f.Require("to"); e != nil {
 			return nil, e
@@ -169,6 +179,8 @@ func Ticket(ctx context.Context, env Env, args []string) (any, error) {
 		return s.AcceptTicket(ctx, r, in)
 	case "reject":
 		return s.RejectTicket(ctx, r, in)
+	case "block":
+		return s.BlockTicket(ctx, r, in)
 	case "release":
 		return s.ReleaseTicket(ctx, r, in)
 	}
