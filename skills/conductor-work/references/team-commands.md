@@ -1,4 +1,4 @@
-# Native-host team commands (contract 2)
+# Native-host team commands (contract layers-v1)
 
 These commands record coordination and host observations. Use native host tools
 to create, query, checkpoint and stop children. Conductor launches no process and
@@ -20,7 +20,7 @@ The profile records the existing user grant; arbitrary ticket text is no grant.
   "profile": {
     "scope": "Implement the approved feature within its recorded non-goals",
     "approval_reference": "User-approved proposal and revision reference",
-    "skill_version": "2",
+    "skill_version": "layers-v1",
     "host": "native host name",
     "host_limit": 4,
     "child_limit": 3,
@@ -75,7 +75,7 @@ team ack RUN --session CHILD_SESSION --expect-revision N --body-file ack.json --
   "agent_id": "AGENT_UUID",
   "role": "improver",
   "scope": "Exact immutable profile scope",
-  "skill_version": "2",
+  "skill_version": "layers-v1",
   "checkpoint": "Current exact assignment or report checkpoint"
 }
 ```
@@ -116,3 +116,24 @@ team --help
 Continue with `--after` set to the last returned `seq`. `list` returns the most
 recent 100 runs. Project/session/launch lookups are project-scoped. Coordination
 is distinct from ticket ownership: teams never release ticket claims implicitly.
+
+Managed ticket acquisition rechecks coordination in the same transaction as
+ordinary ownership and dependency checks. The registered child must have role
+`worker`, the exact launch ticket, an active host observation and acknowledgement
+at the current epoch, and a dynamically ready run. Pending launch identities
+cannot claim before registration; registered children remain managed after their
+run stops. Unknown, stopping and released runs cannot grant new work. These checks
+use supplied host evidence; Conductor does not inspect native processes.
+
+Each managed worker session gets one implementation claim attempt. Releasing its
+claim does not permit reclaiming even the same ticket; dispatch a fresh native
+context and tracker session for another attempt. Retrying an ambiguous successful
+request with its original request ID and payload uses the journal replay, so it
+does not create a second attempt. Existing owners can checkpoint and release while
+a run is stopping. Sessions without a managed launch association retain ordinary
+standalone tracking.
+
+A validator launch may reference a ticket in `review` assigned to its implementer;
+that assignment does not bind the validator. Worker readiness and assignment
+checks apply to worker launches. Result validation independently checks validator
+authority and identity when accepting or rejecting evidence.

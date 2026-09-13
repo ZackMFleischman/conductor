@@ -11,7 +11,7 @@ Start with the exact project, ticket, stable identity, run/launch IDs where appl
 
 Enter a safe isolated worktree before claiming. Register the actual host/session relationship and acknowledge readiness when managed. Assignment is not ownership. Claim the exact eligible ticket; do not alter assignment or policy to make a rejected claim succeed. Recover only the database-confirmed claim and recorded checkout on interruption. A stopped session requires a new session.
 
-Execute through conductor-work. Report workflow problems when they occur. Create linked draft tickets for missing prerequisites, discovered bugs, and out-of-scope follow-ups after checking duplicates. Give each enough context for a different fresh worker. Small corrections within this assignment's criteria stay in the current ticket. Creating a discovery does not authorize doing it or spawning a child.
+Execute through conductor-work. Report workflow problems when they occur. Create linked tickets for missing prerequisites, discovered bugs, and out-of-scope follow-ups after checking duplicates; planning policy determines whether they start as gated drafts. Give each enough context for a different fresh worker. Small corrections within this assignment's criteria stay in the current ticket. Creating a discovery does not authorize doing it or spawning a child.
 
 If blocked, save evidence and a useful handoff, atomically block/release, and end. If release is uncertain, pause and reconcile before ending. If a specification changes materially, checkpoint and wait for the coordinator to resolve the invalidated approval; ownership is not permission to submit against superseded criteria.
 

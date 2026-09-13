@@ -68,7 +68,7 @@ Record problems without erasing earlier observations. `problem.json` contains:
 & $Conductor problem list --json
 ```
 
-## Submit, human QA, and recovery
+## Submit, review, and recovery
 
 Prepare `summary.md` with changed scope and exact criteria completed; `evidence.md` with tested source commits and commands/outcomes; and `qa.md` with reproducible manual steps. Record optional PR links/grouped tickets in ordinary notes. A PR is optional and can contain multiple tickets. Integration uses a separate ticket with included source commits, exact final landed SHA, and combined validation results; refresh checks if the target SHA changes.
 
@@ -77,7 +77,7 @@ Prepare `summary.md` with changed scope and exact criteria completed; `evidence.
 & $Conductor ticket submit APP-1 --session SESSION_UUID --claim CLAIM_UUID --expect-revision CURRENT_REVISION --summary-file '.\summary.md' --evidence-file '.\evidence.md' --qa-file '.\qa.md' --request 'work/submit/1' --json
 ```
 
-Submission releases ownership and enters review. The examples in this section use legacy human-QA tickets. Prepared-work projects can instead select independent-agent or automated validation; see [workflow commands](reference/workflow-commands.md). The worker must not issue `--human` to impersonate human acceptance. After a human tests the result, rejection returns it to ready:
+Submission releases ownership and enters review. New plain tickets support agent decisions without planning or team setup; see [foundation commands](reference/ticket-commands.md) for structured accept/reject examples, hierarchy and dependencies. The examples below show the retained legacy human-QA path. Optional workflow policy can require independent-agent, automated or human validation; see [workflow commands](reference/workflow-commands.md). The worker must not issue `--human` to impersonate human acceptance. After a human tests a legacy result, rejection returns it to ready:
 
 ```powershell
 & $Conductor ticket reject APP-1 --human --expect-revision CURRENT_REVISION --reason 'Observed QA failure and reproduction' --request 'human/reject/1' --json
@@ -109,7 +109,7 @@ Replace the executable at its stable installed path, then rerun setup. Setup upg
 & $Conductor setup --agents codex,claude --apply --json
 ```
 
-Version 0.2 adds database schema 2. Stop old clients before the first write with the new executable. That write creates a consistent `conductor.db.pre-v2-*` backup before migrating an existing version-1 store. Read-only discovery never migrates. Old binaries refuse schema 2. Keep the backup; restore only with all clients stopped and consistent handling of SQLite sidecars. New empty stores need no migration backup.
+Version 0.2 uses database schema 3 and skill contract `layers-v1`. Stop old CLI processes before the first write with the new executable. That write creates a consistent `conductor.db.pre-v3-*` backup before migrating an existing version-1 or version-2 store. Read-only discovery accepts those older versions without migrating. Older binaries refuse newer schemas. Keep the backup; restore only with all clients stopped and consistent handling of SQLite sidecars. New empty stores need no migration backup. Existing tickets retain their recorded validation restrictions; upgrading does not silently authorize agent acceptance of legacy human-QA work.
 
 For removal without reinstalling:
 
@@ -122,8 +122,8 @@ This removes only unchanged Conductor-owned integration and preserves tracker da
 
 ## Optional managed workflow
 
-Project registration and workflow opt-in are separate. Legacy registered projects retain their existing ticket behavior. Configure preparation, execution authorization, and result validation once for a managed project; the user can delegate covered work fully to agents. Human QA is not mandatory for autonomous policy. See [workflow commands](reference/workflow-commands.md), [team commands](reference/team-commands.md), and [retrospective commands](reference/retrospective-commands.md) for tested payloads and actual command syntax.
+Project registration, workflow policy and managed teams are separate. Ordinary registered projects have tickets, hierarchy, dependencies, blockers and agent decision evidence. Optional policy adds preparation, execution authorization and result-validation requirements; it can operate with a standalone agent. The user can delegate covered work fully to agents. Human QA is required only by retained policy, including legacy tickets. See [workflow commands](reference/workflow-commands.md), [team commands](reference/team-commands.md), and [retrospective commands](reference/retrospective-commands.md) for payloads and command syntax.
 
-Ask an agent to use conductor-orchestrator for the approved project and scope. It reconciles existing roles and approvals, starts the workflow improver where enabled, prepares/reviews draft work, and starts fresh single-ticket workers as independent tasks become ready. All roles count against host limits. Ordinary workers may create discoveries, but those drafts pass through preparation before execution. Installing skills or assigning a ticket alone starts no background process.
+Ask an agent to use conductor-orchestrator for an authorized team and scope. It reconciles existing roles and approvals, starts the workflow improver where enabled, plans work using whatever policy is configured, and starts fresh single-ticket workers as independent tasks become ready. All roles count against host limits. Workers may create discoveries; policy determines whether those tickets need preparation before execution. Installing skills or assigning a ticket alone starts no background process. Retrospective analysis and improvement tickets also work without a team.
 
 A host with no supported delegation can run bounded planning/retrospective and ordinary ticket work. It must report that managed agents were not launched. Linux execution and provider-specific native management are supported only where separately validated; sharing tickets across Codex and Claude does not imply one can control arbitrary processes of the other.

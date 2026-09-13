@@ -1,5 +1,7 @@
 # Conductor work commands
 
+For hierarchy, dependencies, blockers and ordinary agent decisions without planning or teams, read [foundation ticket commands](ticket-commands.md). Existing legacy tickets retain their human decision requirement. Optional workflow and managed-team checks add restrictions only where configured.
+
 All commands return one JSON envelope: `{"ok":true,"data":...}` or `{"ok":false,"error":{"code":...,"message":...,"details":...}}`. Use `--json`. Exit codes: 0 success, 2 usage, 3 conflict, 4 missing entity, 5 storage/access failure. Read `data` only after checking `ok`.
 
 Use the absolute executable/data paths recorded in the bootstrap. PowerShell uses `& 'C:\Program Files\Conductor\conductor.exe' --home 'C:\Users\you\AppData\Local\Conductor' ...`; Bash uses `'/absolute/path/conductor' --home '/absolute/data/path' ...`. Never derive the data home from the working directory. `--home` overrides `CONDUCTOR_HOME`, which overrides the platform default. `--project PROJECT_ID` selects a registered project outside a checkout.

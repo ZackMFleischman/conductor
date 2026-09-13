@@ -1,6 +1,6 @@
 # Retrospective commands
 
-Contract: `conductor-team/v2`, schema 2. These commands perform bounded, persistent review. They do not run a watcher, start agents, or authorize implementation. Use the installed executable and configured `--home`; examples abbreviate that prefix as `conductor`. Every command accepts `--json` and explicit `--project PROJECT_ID`.
+Schema 3. These commands perform bounded, persistent review. They do not run a watcher, start agents, or authorize implementation. Use the installed executable and configured `--home`; examples abbreviate that prefix as `conductor`. Every command accepts `--json` and explicit `--project PROJECT_ID`.
 
 ## Review and restart
 
@@ -41,13 +41,13 @@ conductor retrospective decide --session S --body-file decision.json --request r
 conductor retrospective commit BATCH_ID --session S --request review-1/commit --json
 ```
 
-Actions are `now`, `milestone`, and `observe`. Every decision requires an observation, rationale, revisit trigger, RFC3339 review deadline, stable project-scoped group key, and 1–100 unique event citations from this batch. `inferred_cause` is optional and separate from observation. Keep group keys consistent across reviews. The body is limited to 256 KiB; unknown JSON fields and conflicting session IDs are rejected.
+Actions are `now`, `milestone`, and `observe`. Every decision requires an observation, rationale, revisit trigger, RFC3339 review deadline, stable project-scoped group key, and 1-100 unique event citations from this batch. `inferred_cause` is optional and separate from observation. Keep group keys consistent across reviews. The body is limited to 256 KiB; unknown JSON fields and conflicting session IDs are rejected.
 
-`observe` omits all remedy and milestone fields. `now` supplies remedy title/body; `milestone` also supplies milestone ID and condition. The workflow policy must already be configured to create remedies. Retrospective creation inherits that policy and produces draft work under one persistent **Workflow Improvements** epic. Creation, decision, citations, and group links commit atomically. An existing open remedy for the group is reused. Optionally supply `ticket_id` to link a pre-existing unclaimed draft already parented under that epic; a conflicting existing group link is rejected.
+`observe` omits all remedy and milestone fields. `now` supplies remedy title/body; `milestone` also supplies milestone ID and condition. Retrospective analysis and remedy creation work without workflow configuration or a team. New remedies are ordinary ready tickets under one persistent **Workflow Improvements** epic. If the project has planning policy, remedies inherit that snapshot and start as gated drafts. Creation, decision, citations, and group links commit atomically. An existing open remedy for the group is reused. Optionally supply `ticket_id` to link a pre-existing unclaimed ordinary ready ticket or gated draft already parented under that epic; a conflicting existing group link is rejected.
 
 Only one decision may cover a given event. If another processor won, `COVERAGE_CONFLICT` means inspect the persisted batch instead of retrying with new remedy identities. Retain each mutation's request ID and exact payload for ambiguous retries. Different events concurrently assigned to the same group still share one open remedy.
 
-`commit` refuses incomplete coverage. It advances the persisted watermark only after every event in the captured range has a decision. Events arriving after `through_seq` remain for the next batch. Coverage does not delete events or reports. A report after a linked remedy reaches `done` creates a fresh decision with `recurrence_of`; actionable recurrence creates a new draft remedy under the same epic.
+`commit` refuses incomplete coverage. It advances the persisted watermark only after every event in the captured range has a decision. Events arriving after `through_seq` remain for the next batch. Coverage does not delete events or reports. A report after a linked remedy reaches `done` creates a fresh decision with `recurrence_of`; actionable recurrence creates a new remedy under the same epic.
 
 ## Revisit and milestone release
 
@@ -60,7 +60,7 @@ conductor retrospective release-milestone --milestone release-validation --sessi
 
 `list` returns bounded decision summaries in row sequence order; pass the returned `next_cursor` with the same filter until omitted. `--due` selects elapsed review deadlines for the latest decision in each group. Start each new due scan without a cursor. Append review findings to the relevant problem using `problem append`, then cite that new event in the next batch to record a revised decision. A deadline requests review; it does not remove a deferral or prove the condition happened. Decision records retain rationale, citations, original milestone condition, remedy links, and recurrence links. `status` also reports the watermark, epic, pending changes, deferred count, and due count.
 
-Milestone release requires the active project's coordinating session and token, plus evidence. An ordinary worker cannot release the gate. Release clears preparation and execution approval and returns affected tickets to draft. Normal preparation and authorization are still required; the release does not dispatch workers. Existing claims prevent release. An urgent `now` decision reuses an existing remedy but does not bypass its active milestone deferral: the coordinator reconciles that gate explicitly.
+Standalone milestone release requires a live session, `--scope "Authorized improvement scope"`, `--reason "Milestone condition satisfied"`, and an evidence body file. The milestone ID limits the affected tickets; scope and reason record the user-authorized basis for release. With any non-stopped team, release requires its current live coordinator and token; stopping or released runs must be reconciled and cannot fall back to standalone authority. Ordinary tickets return to ready, subject to normal acquisition checks. Gated tickets lose preparation and execution approval and return to draft, requiring preparation and authorization again. Release does not dispatch workers. Existing claims prevent release. An urgent `now` decision reuses an existing remedy but does not bypass its active milestone deferral: an authorized actor reconciles that gate explicitly.
 
 ## Effectiveness
 

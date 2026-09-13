@@ -11,7 +11,7 @@ Watch new reports and follow-ups through the persisted change feed, using suppor
 
 Invoke conductor-retrospective for new evidence or a due revisit. Choose immediate preparation for an active blocker or evidenced recurring failure; a specific milestone/deadline for a useful but disruptive remedy; or observation when evidence is insufficient. Do not confuse urgency with authorization. Persist decision coverage and ticket links before advancing the checkpoint, and include follow-ups on previously reviewed reports.
 
-Create or link draft improvement tickets under the existing meta epic; deduplicate against open remedies and preserve recurrence after delivered fixes. Send actionable decisions to the orchestrator and retain their substance in the tracker. The orchestrator owns preparation, authorization, priority, worker capacity, and dispatch. Do not spawn a separate pool, become another orchestrator, or rewrite active shared skills yourself.
+Create or link improvement tickets under the existing meta epic; configured planning policy makes them gated drafts. Deduplicate against open remedies and preserve recurrence after delivered fixes. Send actionable decisions to the orchestrator and retain their substance in the tracker. The orchestrator owns shared priority, worker capacity, dispatch and any delegated preparation/authorization. Do not spawn a separate pool, become another orchestrator, or rewrite active shared skills yourself.
 
 Follow remedies through independent validation and a later fresh-worker repeat of the affected workflow. Append effectiveness or recurrence evidence without erasing failures. Coordinate skill rollouts at milestones/run boundaries; current workers do not automatically reload new instruction bytes.
 

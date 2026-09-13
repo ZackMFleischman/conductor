@@ -41,7 +41,7 @@ conductor retrospective decide --session S --body-file decision.json --request r
 conductor retrospective commit BATCH_ID --session S --request review-1/commit --json
 ```
 
-Actions are `now`, `milestone`, and `observe`. Every decision requires an observation, rationale, revisit trigger, RFC3339 review deadline, stable project-scoped group key, and 1ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“100 unique event citations from this batch. `inferred_cause` is optional and separate from observation. Keep group keys consistent across reviews. The body is limited to 256 KiB; unknown JSON fields and conflicting session IDs are rejected.
+Actions are `now`, `milestone`, and `observe`. Every decision requires an observation, rationale, revisit trigger, RFC3339 review deadline, stable project-scoped group key, and 1-100 unique event citations from this batch. `inferred_cause` is optional and separate from observation. Keep group keys consistent across reviews. The body is limited to 256 KiB; unknown JSON fields and conflicting session IDs are rejected.
 
 `observe` omits all remedy and milestone fields. `now` supplies remedy title/body; `milestone` also supplies milestone ID and condition. Retrospective analysis and remedy creation work without workflow configuration or a team. New remedies are ordinary ready tickets under one persistent **Workflow Improvements** epic. If the project has planning policy, remedies inherit that snapshot and start as gated drafts. Creation, decision, citations, and group links commit atomically. An existing open remedy for the group is reused. Optionally supply `ticket_id` to link a pre-existing unclaimed ordinary ready ticket or gated draft already parented under that epic; a conflicting existing group link is rejected.
 

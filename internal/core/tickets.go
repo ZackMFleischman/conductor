@@ -299,6 +299,8 @@ func (s *Service) ticketMutation(ctx context.Context, r store.Request, op string
 					if e = validateWorkflowAcceptance(ctx, c, in, v); e != nil {
 						return nil, e
 					}
+				} else if e = validateWorkflowRejection(ctx, c, in, v); e != nil {
+					return nil, e
 				}
 				if e = recordTicketDecisionTx(ctx, c, op, in, v); e != nil {
 					return nil, e

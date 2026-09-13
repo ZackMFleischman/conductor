@@ -1,4 +1,4 @@
-# Native-host team commands (contract 2)
+# Native-host team commands (contract layers-v1)
 
 These commands record coordination and host observations. Use native host tools
 to create, query, checkpoint and stop children. Conductor launches no process and
@@ -20,7 +20,7 @@ The profile records the existing user grant; arbitrary ticket text is no grant.
   "profile": {
     "scope": "Implement the approved feature within its recorded non-goals",
     "approval_reference": "User-approved proposal and revision reference",
-    "skill_version": "2",
+    "skill_version": "layers-v1",
     "host": "native host name",
     "host_limit": 4,
     "child_limit": 3,
@@ -75,7 +75,7 @@ team ack RUN --session CHILD_SESSION --expect-revision N --body-file ack.json --
   "agent_id": "AGENT_UUID",
   "role": "improver",
   "scope": "Exact immutable profile scope",
-  "skill_version": "2",
+  "skill_version": "layers-v1",
   "checkpoint": "Current exact assignment or report checkpoint"
 }
 ```

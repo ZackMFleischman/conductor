@@ -1,6 +1,6 @@
 # Conductor
 
-A small local ticket tracker for coding agents. One SQLite database coordinates work across Git worktrees; a portable CLI lets agents claim tasks, record progress and workflow problems, and submit work for human review.
+A small local ticket tracker for coding agents. One SQLite database coordinates work across Git worktrees; a portable CLI lets agents claim tasks, record progress and workflow problems, and hand off results with review evidence.
 
 The first increment is a CLI tracer: prove the complete working loop before adding a web application. Development progress is on the [work board](PROGRESS.md).
 
@@ -13,13 +13,15 @@ Setup installs a small user-level instruction and skill, preserving existing set
 ## What the tracer covers
 
 - Stable agent identities, separate sessions, assignment, and transactional claims.
-- Tickets moving through ready, in progress, review, and done; explicit human QA and recovery.
+- Tickets, parent/child scope, dependencies, blockers, result submissions and attributed accept/reject decisions without requiring a team.
 - Retriable mutations with caller-retained request IDs, revision checks, and stale-claim protection.
 - Append-only workflow problem reports and follow-ups, including reports without a ticket.
 - One database outside the checkouts, shared by processes on one computer.
 
 Claims coordinate tracker ownership; agents still use isolated Git worktrees for implementation. Sessions report contact and declared state, not inferred process liveness. PRs are optional and may group several tickets.
 
-The next increments add dependency tracking, optional checklists and parent tickets, retrospective processing, autonomous worker/conductor skills, and a React + MUI Kanban portal. Markdown ticket rendering and linked-document sidebars come after the initial board. See the [design](docs/superpowers/specs/2026-09-12-conductor-design.md) and [tracer implementation plan](docs/superpowers/plans/2026-09-12-conductor-tracer.md).
+Optional workflow policy adds preparation, authorization and human, independent-agent or automated result checks. Managed teams add coordinator recovery, native-host readiness and fresh workers restricted to one assignment. Retrospective processing groups problems and tracks proposed remedies with or without a team. These are layers over the tracker, not prerequisites for basic ticketing; see [foundation commands](docs/reference/ticket-commands.md) and the [layer plan](docs/superpowers/plans/2026-09-12-layer-boundaries.md).
+
+A React + MUI Kanban portal is being developed separately. Markdown rendering, linked-document sidebars and optional checklist UI follow the initial board. The portal consumes a documented API rather than depending on SQLite tables. See the [design](docs/superpowers/specs/2026-09-12-conductor-design.md) for later increments.
 
 Actual host checks and limitations are recorded in [host validation](docs/testing/live-host-checks.md). Configuring filesystem access is separate from proving that a fresh agent session can use it.
