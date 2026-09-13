@@ -1,9 +1,12 @@
-import { Box, Button, Stack, Typography } from '@mui/material';
+import { Box, Button, Drawer, Stack, Typography } from '@mui/material';
 import type { ActivityEntry } from '../activity';
 import { TicketLink } from './TicketLinks';
 
-export function ActivityFeed({ entries, onClose }: { entries: ActivityEntry[]; onClose: () => void }) {
-  return <Box component="aside" aria-label="Activity feed" sx={{ width: { xs: '100%', md: 300 }, flexShrink: 0, bgcolor: '#fff', border: '1px solid', borderColor: 'divider', borderRadius: 1.5, p: 1.5, position: { md: 'sticky' }, top: 12, maxHeight: 'calc(100vh - 32px)', overflowY: 'auto' }}>
+export const activityDrawerWidth = 320;
+
+export function ActivityFeed({ entries, open, desktop, onClose }: { entries: ActivityEntry[]; open: boolean; desktop: boolean; onClose: () => void }) {
+  return <Drawer anchor="right" variant={desktop ? 'persistent' : 'temporary'} open={open} onClose={onClose}
+    slotProps={{ paper: { component: 'aside', id: 'activity-drawer', 'aria-label': 'Activity feed', sx: { width: activityDrawerWidth, maxWidth: '100vw', boxSizing: 'border-box', p: 1.5 } } }}>
     <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center' }}><Typography component="h2" variant="h2">Activity</Typography><Button size="small" onClick={onClose}>Collapse</Button></Stack>
     <Typography variant="caption" color="text.secondary">Observed since opening this board · newest first · latest 200 changes. Reconnecting may combine changes.</Typography>
     {!entries.length && <Typography variant="body2" color="text.secondary" sx={{ py: 2 }}>Waiting for ticket changes…</Typography>}
@@ -14,5 +17,5 @@ export function ActivityFeed({ entries, onClose }: { entries: ActivityEntry[]; o
         {entry.changes.map((change, i) => <Typography key={i} variant="body2" color="text.secondary">{change}</Typography>)}
       </Box>)}
     </Box>
-  </Box>;
+  </Drawer>;
 }
