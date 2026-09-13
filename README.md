@@ -24,4 +24,4 @@ Optional workflow policy adds preparation, authorization and human, independent-
 
 A React + MUI Kanban portal is being developed separately. Markdown rendering, linked-document sidebars and optional checklist UI follow the initial board. The portal consumes a documented API rather than depending on SQLite tables. See the [design](docs/superpowers/specs/2026-09-12-conductor-design.md) for later increments.
 
-Actual host checks and limitations are recorded in [host validation](docs/testing/live-host-checks.md). Configuring filesystem access is separate from proving that a fresh agent session can use it.
+Actual host checks and limitations are recorded in [layered workflow acceptance](docs/testing/team-workflow-acceptance.md), including the fresh Windows sandbox, native agents, independent result validation and retrospective audit. Earlier tracer evidence remains in [host validation](docs/testing/live-host-checks.md). Configuring filesystem access is separate from proving that a fresh agent session can use it.

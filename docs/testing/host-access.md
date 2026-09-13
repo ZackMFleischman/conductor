@@ -1,5 +1,7 @@
 # Host access evidence
 
+This is the original foundation-stage record. Subsequent Claude authentication and fresh elevated Windows sandbox validation are documented in [layered workflow acceptance](team-workflow-acceptance.md); the historical access limitations below do not describe the current fresh-session result.
+
 Foundation runtime: Windows amd64, Go 1.27.1 (`go version go1.27.1 windows/amd64`), modernc.org/sqlite v1.58.0. Go module dependencies are pinned in go.mod/go.sum; the setup parser is github.com/pelletier/go-toml/v2 v2.4.3.
 
 The foundation tests exercise a real SQLite database, WAL creation, committed session-shaped data, close/reopen, read-back, and probe-owned cleanup. No business registry is created by doctor. `doctor --probe-write --json` reports the resolved absolute data directory and individual checks.

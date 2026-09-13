@@ -1,5 +1,7 @@
 # Local agent host checks
 
+For the later schema-3 installation and successful fresh elevated Windows sandbox probe, see [layered workflow acceptance](team-workflow-acceptance.md). The unelevated configuration described below is historical.
+
 Observed on Windows, 2026-09-12. This records actual checks, not planned acceptance.
 
 | Check | Result |

@@ -1,0 +1,809 @@
+{
+  "source_commit": "b1399e8a688daef0affde575284e74e6c75f2064",
+  "fixture": "Explicitly synthetic stale CLI flag; not the case-study project",
+  "baseline_commit": "2b9221a75a341fc000f15875e2c22983b97acb1c",
+  "integrated_fixture_commit": "33befda62a3088facd550cf6ed5cc8487d3e07d5",
+  "sqlite_integrity": "ok",
+  "foreign_key_errors": [],
+  "tickets": [
+    {
+      "id": "6a8c9d42-cb0e-4e2f-b882-e0c09320dbb3",
+      "display_key": "SMK-1",
+      "title": "Workflow Improvements",
+      "state": "draft",
+      "revision": 1
+    },
+    {
+      "id": "dd90a80b-1a1d-4cd0-90e8-2bfee664fbbf",
+      "display_key": "SMK-2",
+      "title": "Repair synthetic fixture probe stale home flag",
+      "state": "done",
+      "revision": 8
+    }
+  ],
+  "sessions": [
+    {
+      "id": "981778bc-a1d6-4a0c-a131-1fec851d3d47",
+      "agent_id": "b5df5390-33cd-46f1-9f0a-89a26964723c",
+      "declared_state": "stopped",
+      "worktree_root": "<fixture>\\repo",
+      "branch": "main",
+      "head": "2b9221a75a341fc000f15875e2c22983b97acb1c"
+    },
+    {
+      "id": "e67cb98e-8c22-4fde-a673-d273b56d8e8f",
+      "agent_id": "5a59a7b0-2eb5-4f2a-96f1-21b4c74c5a1b",
+      "declared_state": "stopped",
+      "worktree_root": "<fixture>\\repo",
+      "branch": "main",
+      "head": "2b9221a75a341fc000f15875e2c22983b97acb1c"
+    },
+    {
+      "id": "95df5fa6-a077-4f2c-8900-334ecdeaf9f1",
+      "agent_id": "0572d67b-b5cc-4e96-8cf6-20781f612056",
+      "declared_state": "stopped",
+      "worktree_root": "<fixture>\\worker",
+      "branch": "smoke/fix",
+      "head": "2b9221a75a341fc000f15875e2c22983b97acb1c"
+    },
+    {
+      "id": "7ead1f96-ba2e-4545-a29a-2afdedb9e42d",
+      "agent_id": "9d4fa83b-94bb-4578-a692-8570fc20782c",
+      "declared_state": "stopped",
+      "worktree_root": "<fixture>\\validator",
+      "branch": null,
+      "head": "33befda62a3088facd550cf6ed5cc8487d3e07d5"
+    },
+    {
+      "id": "b03119c8-6dd0-4c2a-bf2b-7fac5777c0d3",
+      "agent_id": "bb90c249-943d-40c9-b037-fee9e8b362dc",
+      "declared_state": "stopped",
+      "worktree_root": "<fixture>\\repeat",
+      "branch": null,
+      "head": "33befda62a3088facd550cf6ed5cc8487d3e07d5"
+    }
+  ],
+  "claims": [
+    {
+      "id": "fd5f9f12-b7f2-4693-98d7-0200f91f1859",
+      "project_id": "8ce2e2d7-a1be-41c6-a77f-0a69d1a25516",
+      "ticket_id": "dd90a80b-1a1d-4cd0-90e8-2bfee664fbbf",
+      "session_id": "95df5fa6-a077-4f2c-8900-334ecdeaf9f1",
+      "created_at": "2026-09-13T01:09:16.6362985Z",
+      "released_at": "2026-09-13T01:11:39.1031871Z",
+      "worktree_root": "<fixture>\\worker",
+      "branch": "smoke/fix",
+      "head": "2b9221a75a341fc000f15875e2c22983b97acb1c"
+    }
+  ],
+  "team_runs": [
+    {
+      "id": "477deade-9d02-4c44-b604-9b7fc6cc5e5e",
+      "project_id": "8ce2e2d7-a1be-41c6-a77f-0a69d1a25516",
+      "coordinator_session_id": "981778bc-a1d6-4a0c-a131-1fec851d3d47",
+      "coordination_id": null,
+      "status": "stopped",
+      "revision": 33,
+      "epoch": 11,
+      "profile": "{\"scope\":\"Repair and independently validate the synthetic CLI runbook failure in the isolated native-smoke fixture; process reports and effectiveness; no case-study or production edits.\",\"approval_reference\":\"User: ok do it, approving the internal workflow validation\",\"skill_version\":\"layers-v1\",\"host\":\"Codex native collaboration\",\"host_limit\":4,\"child_limit\":3,\"required_roles\":[\"improver\"],\"improvement_enabled\":true,\"capabilities\":[\"spawn\",\"status\"],\"polling_seconds\":30,\"delivery_policy\":\"Local fixture worktree commit then independently validated fast-forward integration; no remote or PR\",\"stop_conditions\":\"One remedy accepted, follow-up processed, effectiveness observed, all child sessions and run stopped\"}",
+      "created_at": "2026-09-13T01:02:08.2848873Z"
+    }
+  ],
+  "team_launches": [
+    {
+      "id": "0d46c328-32c6-4f8a-afd1-fa8315fff2e3",
+      "project_id": "8ce2e2d7-a1be-41c6-a77f-0a69d1a25516",
+      "run_id": "477deade-9d02-4c44-b604-9b7fc6cc5e5e",
+      "role": "improver",
+      "agent_id": "5a59a7b0-2eb5-4f2a-96f1-21b4c74c5a1b",
+      "ticket_id": null,
+      "host_id": "/root/smoke_improver",
+      "session_id": "e67cb98e-8c22-4fde-a673-d273b56d8e8f",
+      "host_state": "finished",
+      "observed_epoch": 10,
+      "acknowledged_epoch": 0,
+      "checkpoint": "Watermark16 restored; no pending reports. Independently accepted SMK-2 and exact-SHA fixture integration reported; later fresh-context observer now starting. Effectiveness awaits observer event evidence. Exact profile scope and active observation read at revision26 epoch7.",
+      "evidence": "Native smoke_improver FINAL_ANSWER completed; own session stop reported, watermark46 pending0 and no active claim. Root will independently verify persisted rows.",
+      "created_at": "2026-09-13T01:02:25.4229504Z"
+    },
+    {
+      "id": "3a78ae31-7c3f-42e4-84d7-2d4c6e2c27a9",
+      "project_id": "8ce2e2d7-a1be-41c6-a77f-0a69d1a25516",
+      "run_id": "477deade-9d02-4c44-b604-9b7fc6cc5e5e",
+      "role": "worker",
+      "agent_id": "0572d67b-b5cc-4e96-8cf6-20781f612056",
+      "ticket_id": "dd90a80b-1a1d-4cd0-90e8-2bfee664fbbf",
+      "host_id": "/root/smoke_worker",
+      "session_id": "95df5fa6-a077-4f2c-8900-334ecdeaf9f1",
+      "host_state": "finished",
+      "observed_epoch": 4,
+      "acknowledged_epoch": 0,
+      "checkpoint": "Fresh worker session 95df5fa6-a077-4f2c-8900-334ecdeaf9f1; SMK-2 specification 1 read; clean smoke/fix worktree at 2b9221a75a341fc000f15875e2c22983b97acb1c; no claim yet.",
+      "evidence": "Native collaboration smoke_worker FINAL_ANSWER completed; direct tracker read confirms stopped session, review ticket and released claim.",
+      "created_at": "2026-09-13T01:06:26.7765529Z"
+    },
+    {
+      "id": "3ca326c2-1bb2-41c6-a20c-707bde16859f",
+      "project_id": "8ce2e2d7-a1be-41c6-a77f-0a69d1a25516",
+      "run_id": "477deade-9d02-4c44-b604-9b7fc6cc5e5e",
+      "role": "validator",
+      "agent_id": "9d4fa83b-94bb-4578-a692-8570fc20782c",
+      "ticket_id": "dd90a80b-1a1d-4cd0-90e8-2bfee664fbbf",
+      "host_id": "/root/smoke_validator",
+      "session_id": "7ead1f96-ba2e-4545-a29a-2afdedb9e42d",
+      "host_state": "finished",
+      "observed_epoch": 6,
+      "acknowledged_epoch": 0,
+      "checkpoint": "Fresh independent validator session; current spec1 and submission provenance read; detached clean exact commit33befda62a3088facd550cf6ed5cc8487d3e07d5 inspected; only expected flag change, mandatory args and exit propagation retained. Waiting proceed for fresh probe and acceptance.",
+      "evidence": "Native smoke_validator FINAL_ANSWER completed; ticket done revision8 and own session stop independently read.",
+      "created_at": "2026-09-13T01:12:11.0631293Z"
+    },
+    {
+      "id": "2dce996d-ab8d-49ff-98ad-c648d3e92e2d",
+      "project_id": "8ce2e2d7-a1be-41c6-a77f-0a69d1a25516",
+      "run_id": "477deade-9d02-4c44-b604-9b7fc6cc5e5e",
+      "role": "observer",
+      "agent_id": "bb90c249-943d-40c9-b037-fee9e8b362dc",
+      "ticket_id": "dd90a80b-1a1d-4cd0-90e8-2bfee664fbbf",
+      "host_id": "/root/smoke_repeat",
+      "session_id": "b03119c8-6dd0-4c2a-bf2b-7fac5777c0d3",
+      "host_state": "finished",
+      "observed_epoch": 8,
+      "acknowledged_epoch": 0,
+      "checkpoint": "Fresh observer session, no implementation or validation participation. Actual SMK-2 done revision8 and SMK-P1 read. Detached integrated SHA 33befda62a3088facd550cf6ed5cc8487d3e07d5 and probe.ps1 inspected. Waiting ready/proceed before fresh isolated runbook repeat.",
+      "evidence": "Native smoke_repeat FINAL_ANSWER completed, own session stopped; actual fresh probe evidence and SMK-P1 append event46 independently read.",
+      "created_at": "2026-09-13T01:17:41.4965081Z"
+    }
+  ],
+  "event_order": [
+    {
+      "seq": 1,
+      "kind": "workflow.configure",
+      "actor_id": "local-user",
+      "ticket_id": null,
+      "problem_id": null,
+      "created_at": "2026-09-13T01:02:07.2745858Z"
+    },
+    {
+      "seq": 2,
+      "kind": "problem.add",
+      "actor_id": "981778bc-a1d6-4a0c-a131-1fec851d3d47",
+      "ticket_id": null,
+      "problem_id": "9106d2fb-ae54-4f0a-a518-535441e3e80b",
+      "created_at": "2026-09-13T01:02:07.8915956Z"
+    },
+    {
+      "seq": 3,
+      "kind": "team.start",
+      "actor_id": "981778bc-a1d6-4a0c-a131-1fec851d3d47",
+      "ticket_id": null,
+      "problem_id": null,
+      "created_at": "2026-09-13T01:02:08.2859449Z"
+    },
+    {
+      "seq": 4,
+      "kind": "team.launch",
+      "actor_id": "981778bc-a1d6-4a0c-a131-1fec851d3d47",
+      "ticket_id": null,
+      "problem_id": null,
+      "created_at": "2026-09-13T01:02:25.4234732Z"
+    },
+    {
+      "seq": 5,
+      "kind": "team.register",
+      "actor_id": "981778bc-a1d6-4a0c-a131-1fec851d3d47",
+      "ticket_id": null,
+      "problem_id": null,
+      "created_at": "2026-09-13T01:03:44.4255191Z"
+    },
+    {
+      "seq": 6,
+      "kind": "team.observe",
+      "actor_id": "981778bc-a1d6-4a0c-a131-1fec851d3d47",
+      "ticket_id": null,
+      "problem_id": null,
+      "created_at": "2026-09-13T01:03:45.0053231Z"
+    },
+    {
+      "seq": 7,
+      "kind": "team.ack",
+      "actor_id": "e67cb98e-8c22-4fde-a673-d273b56d8e8f",
+      "ticket_id": null,
+      "problem_id": null,
+      "created_at": "2026-09-13T01:04:13.7077079Z"
+    },
+    {
+      "seq": 8,
+      "kind": "retrospective.begin",
+      "actor_id": "e67cb98e-8c22-4fde-a673-d273b56d8e8f",
+      "ticket_id": null,
+      "problem_id": null,
+      "created_at": "2026-09-13T01:04:21.8782897Z"
+    },
+    {
+      "seq": 9,
+      "kind": "retrospective.decide",
+      "actor_id": "e67cb98e-8c22-4fde-a673-d273b56d8e8f",
+      "ticket_id": null,
+      "problem_id": null,
+      "created_at": "2026-09-13T01:04:52.8279737Z"
+    },
+    {
+      "seq": 10,
+      "kind": "retrospective.commit",
+      "actor_id": "e67cb98e-8c22-4fde-a673-d273b56d8e8f",
+      "ticket_id": null,
+      "problem_id": null,
+      "created_at": "2026-09-13T01:05:05.5719669Z"
+    },
+    {
+      "seq": 11,
+      "kind": "team.ready",
+      "actor_id": "981778bc-a1d6-4a0c-a131-1fec851d3d47",
+      "ticket_id": null,
+      "problem_id": null,
+      "created_at": "2026-09-13T01:05:52.8421791Z"
+    },
+    {
+      "seq": 12,
+      "kind": "workflow.prepare",
+      "actor_id": "981778bc-a1d6-4a0c-a131-1fec851d3d47",
+      "ticket_id": "dd90a80b-1a1d-4cd0-90e8-2bfee664fbbf",
+      "problem_id": null,
+      "created_at": "2026-09-13T01:06:25.1850971Z"
+    },
+    {
+      "seq": 13,
+      "kind": "workflow.authorize",
+      "actor_id": "981778bc-a1d6-4a0c-a131-1fec851d3d47",
+      "ticket_id": "dd90a80b-1a1d-4cd0-90e8-2bfee664fbbf",
+      "problem_id": null,
+      "created_at": "2026-09-13T01:06:25.7716749Z"
+    },
+    {
+      "seq": 14,
+      "kind": "ticket.assign",
+      "actor_id": "local-user",
+      "ticket_id": "dd90a80b-1a1d-4cd0-90e8-2bfee664fbbf",
+      "problem_id": null,
+      "created_at": "2026-09-13T01:06:26.2518707Z"
+    },
+    {
+      "seq": 15,
+      "kind": "team.launch",
+      "actor_id": "981778bc-a1d6-4a0c-a131-1fec851d3d47",
+      "ticket_id": null,
+      "problem_id": null,
+      "created_at": "2026-09-13T01:06:26.7770827Z"
+    },
+    {
+      "seq": 16,
+      "kind": "problem.append",
+      "actor_id": "981778bc-a1d6-4a0c-a131-1fec851d3d47",
+      "ticket_id": null,
+      "problem_id": "9106d2fb-ae54-4f0a-a518-535441e3e80b",
+      "created_at": "2026-09-13T01:07:03.3279426Z"
+    },
+    {
+      "seq": 17,
+      "kind": "retrospective.begin",
+      "actor_id": "e67cb98e-8c22-4fde-a673-d273b56d8e8f",
+      "ticket_id": null,
+      "problem_id": null,
+      "created_at": "2026-09-13T01:07:21.9415858Z"
+    },
+    {
+      "seq": 18,
+      "kind": "team.register",
+      "actor_id": "981778bc-a1d6-4a0c-a131-1fec851d3d47",
+      "ticket_id": null,
+      "problem_id": null,
+      "created_at": "2026-09-13T01:07:36.5884259Z"
+    },
+    {
+      "seq": 19,
+      "kind": "team.observe",
+      "actor_id": "981778bc-a1d6-4a0c-a131-1fec851d3d47",
+      "ticket_id": null,
+      "problem_id": null,
+      "created_at": "2026-09-13T01:07:37.2273582Z"
+    },
+    {
+      "seq": 20,
+      "kind": "retrospective.decide",
+      "actor_id": "e67cb98e-8c22-4fde-a673-d273b56d8e8f",
+      "ticket_id": null,
+      "problem_id": null,
+      "created_at": "2026-09-13T01:07:37.7857623Z"
+    },
+    {
+      "seq": 21,
+      "kind": "team.observe",
+      "actor_id": "981778bc-a1d6-4a0c-a131-1fec851d3d47",
+      "ticket_id": null,
+      "problem_id": null,
+      "created_at": "2026-09-13T01:07:37.9385084Z"
+    },
+    {
+      "seq": 22,
+      "kind": "retrospective.commit",
+      "actor_id": "e67cb98e-8c22-4fde-a673-d273b56d8e8f",
+      "ticket_id": null,
+      "problem_id": null,
+      "created_at": "2026-09-13T01:07:47.2266967Z"
+    },
+    {
+      "seq": 23,
+      "kind": "team.ack",
+      "actor_id": "e67cb98e-8c22-4fde-a673-d273b56d8e8f",
+      "ticket_id": null,
+      "problem_id": null,
+      "created_at": "2026-09-13T01:08:09.485438Z"
+    },
+    {
+      "seq": 24,
+      "kind": "team.ack",
+      "actor_id": "95df5fa6-a077-4f2c-8900-334ecdeaf9f1",
+      "ticket_id": null,
+      "problem_id": null,
+      "created_at": "2026-09-13T01:08:44.1103392Z"
+    },
+    {
+      "seq": 25,
+      "kind": "team.ready",
+      "actor_id": "981778bc-a1d6-4a0c-a131-1fec851d3d47",
+      "ticket_id": null,
+      "problem_id": null,
+      "created_at": "2026-09-13T01:09:00.1938382Z"
+    },
+    {
+      "seq": 26,
+      "kind": "ticket.claim",
+      "actor_id": "95df5fa6-a077-4f2c-8900-334ecdeaf9f1",
+      "ticket_id": "dd90a80b-1a1d-4cd0-90e8-2bfee664fbbf",
+      "problem_id": null,
+      "created_at": "2026-09-13T01:09:16.637374Z"
+    },
+    {
+      "seq": 27,
+      "kind": "ticket.note",
+      "actor_id": "95df5fa6-a077-4f2c-8900-334ecdeaf9f1",
+      "ticket_id": "dd90a80b-1a1d-4cd0-90e8-2bfee664fbbf",
+      "problem_id": null,
+      "created_at": "2026-09-13T01:09:51.222112Z"
+    },
+    {
+      "seq": 28,
+      "kind": "ticket.submit",
+      "actor_id": "95df5fa6-a077-4f2c-8900-334ecdeaf9f1",
+      "ticket_id": "dd90a80b-1a1d-4cd0-90e8-2bfee664fbbf",
+      "problem_id": null,
+      "created_at": "2026-09-13T01:11:39.1031871Z"
+    },
+    {
+      "seq": 29,
+      "kind": "team.observe",
+      "actor_id": "981778bc-a1d6-4a0c-a131-1fec851d3d47",
+      "ticket_id": null,
+      "problem_id": null,
+      "created_at": "2026-09-13T01:12:10.5757431Z"
+    },
+    {
+      "seq": 30,
+      "kind": "team.launch",
+      "actor_id": "981778bc-a1d6-4a0c-a131-1fec851d3d47",
+      "ticket_id": null,
+      "problem_id": null,
+      "created_at": "2026-09-13T01:12:11.063656Z"
+    },
+    {
+      "seq": 31,
+      "kind": "team.register",
+      "actor_id": "981778bc-a1d6-4a0c-a131-1fec851d3d47",
+      "ticket_id": null,
+      "problem_id": null,
+      "created_at": "2026-09-13T01:13:15.3598979Z"
+    },
+    {
+      "seq": 32,
+      "kind": "team.observe",
+      "actor_id": "981778bc-a1d6-4a0c-a131-1fec851d3d47",
+      "ticket_id": null,
+      "problem_id": null,
+      "created_at": "2026-09-13T01:13:15.7927925Z"
+    },
+    {
+      "seq": 33,
+      "kind": "team.observe",
+      "actor_id": "981778bc-a1d6-4a0c-a131-1fec851d3d47",
+      "ticket_id": null,
+      "problem_id": null,
+      "created_at": "2026-09-13T01:13:16.177923Z"
+    },
+    {
+      "seq": 34,
+      "kind": "team.ack",
+      "actor_id": "e67cb98e-8c22-4fde-a673-d273b56d8e8f",
+      "ticket_id": null,
+      "problem_id": null,
+      "created_at": "2026-09-13T01:13:47.8934672Z"
+    },
+    {
+      "seq": 35,
+      "kind": "team.ack",
+      "actor_id": "7ead1f96-ba2e-4545-a29a-2afdedb9e42d",
+      "ticket_id": null,
+      "problem_id": null,
+      "created_at": "2026-09-13T01:14:30.2171842Z"
+    },
+    {
+      "seq": 36,
+      "kind": "team.ready",
+      "actor_id": "981778bc-a1d6-4a0c-a131-1fec851d3d47",
+      "ticket_id": null,
+      "problem_id": null,
+      "created_at": "2026-09-13T01:14:53.8216558Z"
+    },
+    {
+      "seq": 37,
+      "kind": "ticket.accept",
+      "actor_id": "7ead1f96-ba2e-4545-a29a-2afdedb9e42d",
+      "ticket_id": "dd90a80b-1a1d-4cd0-90e8-2bfee664fbbf",
+      "problem_id": null,
+      "created_at": "2026-09-13T01:15:58.7644391Z"
+    },
+    {
+      "seq": 38,
+      "kind": "team.observe",
+      "actor_id": "981778bc-a1d6-4a0c-a131-1fec851d3d47",
+      "ticket_id": null,
+      "problem_id": null,
+      "created_at": "2026-09-13T01:17:40.3234947Z"
+    },
+    {
+      "seq": 39,
+      "kind": "team.launch",
+      "actor_id": "981778bc-a1d6-4a0c-a131-1fec851d3d47",
+      "ticket_id": null,
+      "problem_id": null,
+      "created_at": "2026-09-13T01:17:41.4970513Z"
+    },
+    {
+      "seq": 40,
+      "kind": "team.register",
+      "actor_id": "981778bc-a1d6-4a0c-a131-1fec851d3d47",
+      "ticket_id": null,
+      "problem_id": null,
+      "created_at": "2026-09-13T01:18:57.7302834Z"
+    },
+    {
+      "seq": 41,
+      "kind": "team.observe",
+      "actor_id": "981778bc-a1d6-4a0c-a131-1fec851d3d47",
+      "ticket_id": null,
+      "problem_id": null,
+      "created_at": "2026-09-13T01:18:58.1375886Z"
+    },
+    {
+      "seq": 42,
+      "kind": "team.observe",
+      "actor_id": "981778bc-a1d6-4a0c-a131-1fec851d3d47",
+      "ticket_id": null,
+      "problem_id": null,
+      "created_at": "2026-09-13T01:18:58.4958389Z"
+    },
+    {
+      "seq": 43,
+      "kind": "team.ack",
+      "actor_id": "e67cb98e-8c22-4fde-a673-d273b56d8e8f",
+      "ticket_id": null,
+      "problem_id": null,
+      "created_at": "2026-09-13T01:19:20.9351099Z"
+    },
+    {
+      "seq": 44,
+      "kind": "team.ack",
+      "actor_id": "b03119c8-6dd0-4c2a-bf2b-7fac5777c0d3",
+      "ticket_id": null,
+      "problem_id": null,
+      "created_at": "2026-09-13T01:20:10.462697Z"
+    },
+    {
+      "seq": 45,
+      "kind": "team.ready",
+      "actor_id": "981778bc-a1d6-4a0c-a131-1fec851d3d47",
+      "ticket_id": null,
+      "problem_id": null,
+      "created_at": "2026-09-13T01:20:29.6665044Z"
+    },
+    {
+      "seq": 46,
+      "kind": "problem.append",
+      "actor_id": "b03119c8-6dd0-4c2a-bf2b-7fac5777c0d3",
+      "ticket_id": null,
+      "problem_id": "9106d2fb-ae54-4f0a-a518-535441e3e80b",
+      "created_at": "2026-09-13T01:21:37.3333596Z"
+    },
+    {
+      "seq": 47,
+      "kind": "retrospective.begin",
+      "actor_id": "e67cb98e-8c22-4fde-a673-d273b56d8e8f",
+      "ticket_id": null,
+      "problem_id": null,
+      "created_at": "2026-09-13T01:22:03.2660486Z"
+    },
+    {
+      "seq": 48,
+      "kind": "team.observe",
+      "actor_id": "981778bc-a1d6-4a0c-a131-1fec851d3d47",
+      "ticket_id": null,
+      "problem_id": null,
+      "created_at": "2026-09-13T01:22:07.4545541Z"
+    },
+    {
+      "seq": 49,
+      "kind": "retrospective.decide",
+      "actor_id": "e67cb98e-8c22-4fde-a673-d273b56d8e8f",
+      "ticket_id": null,
+      "problem_id": null,
+      "created_at": "2026-09-13T01:22:35.6930321Z"
+    },
+    {
+      "seq": 50,
+      "kind": "retrospective.effectiveness",
+      "actor_id": "e67cb98e-8c22-4fde-a673-d273b56d8e8f",
+      "ticket_id": null,
+      "problem_id": null,
+      "created_at": "2026-09-13T01:23:04.6369264Z"
+    },
+    {
+      "seq": 51,
+      "kind": "retrospective.commit",
+      "actor_id": "e67cb98e-8c22-4fde-a673-d273b56d8e8f",
+      "ticket_id": null,
+      "problem_id": null,
+      "created_at": "2026-09-13T01:23:15.0509933Z"
+    },
+    {
+      "seq": 52,
+      "kind": "team.stop",
+      "actor_id": "981778bc-a1d6-4a0c-a131-1fec851d3d47",
+      "ticket_id": null,
+      "problem_id": null,
+      "created_at": "2026-09-13T01:23:34.2455087Z"
+    },
+    {
+      "seq": 53,
+      "kind": "team.observe",
+      "actor_id": "981778bc-a1d6-4a0c-a131-1fec851d3d47",
+      "ticket_id": null,
+      "problem_id": null,
+      "created_at": "2026-09-13T01:24:15.0041173Z"
+    },
+    {
+      "seq": 54,
+      "kind": "team.stop",
+      "actor_id": "981778bc-a1d6-4a0c-a131-1fec851d3d47",
+      "ticket_id": null,
+      "problem_id": null,
+      "created_at": "2026-09-13T01:24:15.4151514Z"
+    }
+  ],
+  "ticket_decisions": [
+    {
+      "id": "360b8ae8-2608-4304-8aef-733da4e4865b",
+      "project_id": "8ce2e2d7-a1be-41c6-a77f-0a69d1a25516",
+      "ticket_id": "dd90a80b-1a1d-4cd0-90e8-2bfee664fbbf",
+      "spec_revision": 1,
+      "mode": "independent_agent",
+      "session_id": "7ead1f96-ba2e-4545-a29a-2afdedb9e42d",
+      "agent_id": "9d4fa83b-94bb-4578-a692-8570fc20782c",
+      "context_id": "/root/smoke_validator",
+      "commit_id": "33befda62a3088facd550cf6ed5cc8487d3e07d5",
+      "criteria": "Spec1 delivery criteria completed: independently inspected exact submitted commit, only probe.ps1 stale --data-dir to --home substitution; mandatory Conductor and DataHome arguments and exit propagation retained. Fresh independent validator ran wrapper through installed executable with different previously absent explicit probe home. Exit0, envelope ok=true, all5 doctor checks pass. Baseline failure preserved. Acceptance covers corrected tested fixture worktree commit. Fixture integration and later fresh-context effectiveness repeat are separate coordinator/observer handoffs per preparation.",
+      "evidence": "Independent identity9d4fa83b-94bb-4578-a692-8570fc20782c, session7ead1f96-ba2e-4545-a29a-2afdedb9e42d, context /root/smoke_validator; no implementation participation or source edits. Detached HEAD33befda62a3088facd550cf6ed5cc8487d3e07d5 matches submitted SHA and current/submitted spec1. Command: powershell.exe -NoProfile -File ./probe.ps1 -Conductor C:/Users/zFlei/AppData/Local/Conductor/bin/conductor.exe -DataHome <fixture>/probes/validator-7ead1f96. Observed exit0; ok=true; cleanup/open/persistence/reopen/wal_created all Boolean true; exactly5 checks enumerated. git diff HEAD^ HEAD --check passes; git status --porcelain empty. Raw command/output/checks/provenance/diff retained under <fixture>/evidence/validator/: probe.json, probe-output.txt, commit-diff.txt, ticket-before-accept.json. Existing evidence/baseline.txt inspected and preserved. Initial documentation path lookup error corrected and recorded in process-note.txt.",
+      "checks": "{\"probe\":\"pass\"}",
+      "created_at": "2026-09-13T01:15:58.7639126Z",
+      "outcome": "accepted",
+      "reason": ""
+    }
+  ],
+  "retrospective_batches": [
+    {
+      "id": "397b4d56-14a3-4b78-bddb-9ee522e53db5",
+      "project_id": "8ce2e2d7-a1be-41c6-a77f-0a69d1a25516",
+      "session_id": "e67cb98e-8c22-4fde-a673-d273b56d8e8f",
+      "from_seq": 0,
+      "through_seq": 2,
+      "status": "committed",
+      "created_at": "2026-09-13T01:04:21.8777574Z"
+    },
+    {
+      "id": "3aa5a2f9-2b55-4369-9f69-573092a59c2b",
+      "project_id": "8ce2e2d7-a1be-41c6-a77f-0a69d1a25516",
+      "session_id": "e67cb98e-8c22-4fde-a673-d273b56d8e8f",
+      "from_seq": 2,
+      "through_seq": 16,
+      "status": "committed",
+      "created_at": "2026-09-13T01:07:21.9410313Z"
+    },
+    {
+      "id": "dae214b4-267e-41f1-94d7-8963d5f6b522",
+      "project_id": "8ce2e2d7-a1be-41c6-a77f-0a69d1a25516",
+      "session_id": "e67cb98e-8c22-4fde-a673-d273b56d8e8f",
+      "from_seq": 16,
+      "through_seq": 46,
+      "status": "committed",
+      "created_at": "2026-09-13T01:22:03.2660486Z"
+    }
+  ],
+  "retrospective_checkpoints": [
+    {
+      "project_id": "8ce2e2d7-a1be-41c6-a77f-0a69d1a25516",
+      "watermark": 46
+    }
+  ],
+  "retrospective_citations": [
+    {
+      "project_id": "8ce2e2d7-a1be-41c6-a77f-0a69d1a25516",
+      "event_seq": 2,
+      "decision_id": "88e322b9-4af5-471c-94d9-9a37f1d99c88"
+    },
+    {
+      "project_id": "8ce2e2d7-a1be-41c6-a77f-0a69d1a25516",
+      "event_seq": 16,
+      "decision_id": "ba82b85c-1f99-409e-a97e-fbf72ae24a5b"
+    },
+    {
+      "project_id": "8ce2e2d7-a1be-41c6-a77f-0a69d1a25516",
+      "event_seq": 46,
+      "decision_id": "3c8646ba-4614-44c5-af17-e252eed8ed9c"
+    }
+  ],
+  "retrospective_decisions": [
+    {
+      "id": "88e322b9-4af5-471c-94d9-9a37f1d99c88",
+      "project_id": "8ce2e2d7-a1be-41c6-a77f-0a69d1a25516",
+      "batch_id": "397b4d56-14a3-4b78-bddb-9ee522e53db5",
+      "group_key": "synthetic-runbook-flag",
+      "session_id": "e67cb98e-8c22-4fde-a673-d273b56d8e8f",
+      "action": "now",
+      "observation": "Synthetic seeded issue SMK-P1, problem 9106d2fb-ae54-4f0a-a518-535441e3e80b, problem.add event seq 2 (2026-09-13T01:02:07.8915956Z), reports baseline fixture commit 2b9221a75a341fc000f15875e2c22983b97acb1c exiting 2 with USAGE unknown command: --data-dir. Read-only inspection confirms probe.ps1 invokes that deliberately stale flag and evidence/baseline.txt preserves the matching error.",
+      "inferred_cause": "The deliberately seeded wrapper flag is incompatible with the installed CLI global --home option; this is an internal smoke fixture issue, not a production defect.",
+      "rationale": "The synthetic failure blocks the authorized fixture probe. Prepare one tightly scoped remedy immediately; independent validation and a later fresh-worker repeat are required before effectiveness can be assessed.",
+      "revisit_trigger": "Review independent validator evidence and the later fresh-worker repeat after remedy delivery, or revisit on another failure or the deadline.",
+      "review_after": "2026-09-13T02:00:00Z",
+      "ticket_id": "dd90a80b-1a1d-4cd0-90e8-2bfee664fbbf",
+      "recurrence_of": null,
+      "created_at": "2026-09-13T01:04:52.8263419Z",
+      "milestone_id": "",
+      "condition_text": ""
+    },
+    {
+      "id": "ba82b85c-1f99-409e-a97e-fbf72ae24a5b",
+      "project_id": "8ce2e2d7-a1be-41c6-a77f-0a69d1a25516",
+      "batch_id": "3aa5a2f9-2b55-4369-9f69-573092a59c2b",
+      "group_key": "synthetic-runbook-flag",
+      "session_id": "e67cb98e-8c22-4fde-a673-d273b56d8e8f",
+      "action": "now",
+      "observation": "SMK-P1 problem.append event seq 16 records a controlled second reproduction before remedy delivery: the same synthetic seeded --data-dir invocation exits 2 with USAGE unknown command: --data-dir. It is additional evidence for the same pre-delivery issue, not post-delivery recurrence.",
+      "inferred_cause": "The deliberately seeded wrapper flag is incompatible with the installed CLI global --home option; this is an internal smoke fixture issue, not a production defect.",
+      "rationale": "The repeated pre-delivery failure supports the existing narrowly scoped repair. Stable group synthetic-runbook-flag should reuse open SMK-2; no separate remedy is justified. Effectiveness remains unassessed pending independent validation and later fresh-worker repeat.",
+      "revisit_trigger": "Review independent validator evidence and the later fresh-worker repeat after remedy delivery, or revisit on another failure or the deadline.",
+      "review_after": "2026-09-13T02:00:00Z",
+      "ticket_id": "dd90a80b-1a1d-4cd0-90e8-2bfee664fbbf",
+      "recurrence_of": null,
+      "created_at": "2026-09-13T01:07:37.7841472Z",
+      "milestone_id": "",
+      "condition_text": ""
+    },
+    {
+      "id": "3c8646ba-4614-44c5-af17-e252eed8ed9c",
+      "project_id": "8ce2e2d7-a1be-41c6-a77f-0a69d1a25516",
+      "batch_id": "dae214b4-267e-41f1-94d7-8963d5f6b522",
+      "group_key": "synthetic-runbook-flag",
+      "session_id": "e67cb98e-8c22-4fde-a673-d273b56d8e8f",
+      "action": "observe",
+      "observation": "SMK-P1 problem.append event seq46 records a later fresh-context repeat from /root/smoke_repeat (identity bb90c249-943d-40c9-b037-fee9e8b362dc, session b03119c8-6dd0-4c2a-bf2b-7fac5777c0d3). Directly read evidence/repeat/probe.json and checks.json: exact integrated and repeated SHA33befda62a3088facd550cf6ed5cc8487d3e07d5, home absent before, exit0, ok=true, all five Boolean checks cleanup/open/persistence/reopen/wal_created true. Repeat at 2026-09-13T01:21:02.7032184Z followed acceptance at 2026-09-13T01:15:58.7639126Z. Baseline failure events2 and16 remain preserved.",
+      "inferred_cause": "",
+      "rationale": "Independent delivery was accepted separately; the later actual repeat now supplies bounded effectiveness evidence. No failure recurred in this single observed synthetic repeat, so no new remedy is justified. This does not establish permanent effectiveness or a production workflow result. A generic recurrence link on a post-done decision would reflect tracker linkage, not an observed renewed failure.",
+      "revisit_trigger": "Reassess on a newly observed recurrence or another authorized fresh repeat; review by deadline if the fixture run remains active. Shutdown checkpoint retains this trigger without installing background scheduling.",
+      "review_after": "2026-09-13T02:00:00Z",
+      "ticket_id": null,
+      "recurrence_of": "ba82b85c-1f99-409e-a97e-fbf72ae24a5b",
+      "created_at": "2026-09-13T01:22:35.6919718Z",
+      "milestone_id": "",
+      "condition_text": ""
+    }
+  ],
+  "retrospective_effectiveness": [
+    {
+      "id": "65d2fc81-6e57-4cd4-ada2-d603f14e9839",
+      "project_id": "8ce2e2d7-a1be-41c6-a77f-0a69d1a25516",
+      "decision_id": "88e322b9-4af5-471c-94d9-9a37f1d99c88",
+      "session_id": "e67cb98e-8c22-4fde-a673-d273b56d8e8f",
+      "outcome": "improved",
+      "evidence": "Outcome: improved, limited to the one observed synthetic fixture repeat. Original decision 88e322b9-4af5-471c-94d9-9a37f1d99c88 cites SMK-P1 event2; pre-delivery follow-up event16 and decision ba82b85c-1f99-409e-a97e-fbf72ae24a5b reused the same remedy SMK-2 (dd90a80b-1a1d-4cd0-90e8-2bfee664fbbf).\nDelivery evidence: independent validator /root/smoke_validator, session7ead1f96-ba2e-4545-a29a-2afdedb9e42d, accepted exact commit33befda62a3088facd550cf6ed5cc8487d3e07d5 at 2026-09-13T01:15:58.7639126Z; evidence/validator/probe.json and accept.json directly inspected. Delivery acceptance alone was not treated as improvement.\nLater effectiveness evidence: SMK-P1 problem.append event46, reviewed by decision3c8646ba-4614-44c5-af17-e252eed8ed9c; separate fresh context /root/smoke_repeat, distinct identity bb90c249-943d-40c9-b037-fee9e8b362dc and fresh session b03119c8-6dd0-4c2a-bf2b-7fac5777c0d3. Actual repeat 2026-09-13T01:21:02.7032184Z through 01:21:03.0235813Z occurred after acceptance and integration at exact SHA33befda62a3088facd550cf6ed5cc8487d3e07d5.\nDirectly read <fixture>/evidence/repeat/probe.json and checks.json. Command from fresh detached repeat checkout: powershell.exe -NoProfile -File ./probe.ps1 -Conductor C:/Users/zFlei/AppData/Local/Conductor/bin/conductor.exe -DataHome <fixture>/probes/repeat-b03119c8. Probe home was absent before invocation, separate from registry and prior homes. Exit0, JSON ok=true; all five returned checks independently read as Boolean true: cleanup, open, persistence, reopen, wal_created. Checkout stayed clean. Original --data-dir failure did not recur in this observed repeat.\nThis supports improvement for this deliberately seeded issue in one fresh-context repeat only. It does not establish permanent effectiveness, broad production benefit, or failure-rate estimates. Preserve baseline failures and re-review any later recurrence. Deadline2026-09-13T02:00:00Z if still active, or next authorized run on new evidence. No duplicate remedy was created.\r\n",
+      "created_at": "2026-09-13T01:23:04.6357284Z"
+    }
+  ],
+  "worker_baseline": {
+    "probe_home_existed_before": false,
+    "command": "powershell.exe -NoProfile -File ./probe.ps1 -Conductor C:/Users/zFlei/AppData/Local/Conductor/bin/conductor.exe -DataHome <fixture>/probes/worker-red-95df5fa6",
+    "commit": "2b9221a75a341fc000f15875e2c22983b97acb1c",
+    "output": "{\"error\":{\"code\":\"USAGE\",\"message\":\"unknown command: --data-dir\",\"details\":{}},\"ok\":false}",
+    "probe_home_exists_after": false,
+    "exit_code": 2
+  },
+  "worker_committed_probe": {
+    "probe_home_existed_before": false,
+    "checks": {
+      "cleanup": true,
+      "open": true,
+      "persistence": true,
+      "reopen": true,
+      "wal_created": true
+    },
+    "output": "{\"data\":{\"checks\":{\"cleanup\":true,\"open\":true,\"persistence\":true,\"reopen\":true,\"wal_created\":true},\"path\":\"C:\\\\Users\\\\zFlei\\\\repos\\\\conductor\\\\.worktrees\\\\team-runtime\\\\.superpowers\\\\native-smoke\\\\probes\\\\worker-commit-95df5fa6\",\"probe_path\":\"C:\\\\Users\\\\zFlei\\\\repos\\\\conductor\\\\.worktrees\\\\team-runtime\\\\.superpowers\\\\native-smoke\\\\probes\\\\worker-commit-95df5fa6\\\\conductor-probe-2276399712.db\"},\"ok\":true}",
+    "envelope_ok": true,
+    "command": "powershell.exe -NoProfile -File ./probe.ps1 -Conductor C:/Users/zFlei/AppData/Local/Conductor/bin/conductor.exe -DataHome <fixture>/probes/worker-commit-95df5fa6",
+    "commit": "33befda62a3088facd550cf6ed5cc8487d3e07d5",
+    "all_checks_pass": true,
+    "exit_code": 0,
+    "cwd": "<fixture>\\worker"
+  },
+  "independent_validator_probe": {
+    "command": "powershell.exe -NoProfile -File ./probe.ps1 -Conductor C:/Users/zFlei/AppData/Local/Conductor/bin/conductor.exe -DataHome <fixture>/probes/validator-7ead1f96",
+    "output": "{\"data\":{\"checks\":{\"cleanup\":true,\"open\":true,\"persistence\":true,\"reopen\":true,\"wal_created\":true},\"path\":\"C:\\\\Users\\\\zFlei\\\\repos\\\\conductor\\\\.worktrees\\\\team-runtime\\\\.superpowers\\\\native-smoke\\\\probes\\\\validator-7ead1f96\",\"probe_path\":\"C:\\\\Users\\\\zFlei\\\\repos\\\\conductor\\\\.worktrees\\\\team-runtime\\\\.superpowers\\\\native-smoke\\\\probes\\\\validator-7ead1f96\\\\conductor-probe-133125288.db\"},\"ok\":true}",
+    "envelope_ok": true,
+    "exit_code": 0,
+    "checks": {
+      "cleanup": true,
+      "open": true,
+      "persistence": true,
+      "reopen": true,
+      "wal_created": true
+    },
+    "probe_home_existed_before": false,
+    "spec_revision": 1,
+    "probe_home": "<fixture>/probes/validator-7ead1f96",
+    "cwd": "<fixture>\\validator",
+    "commit": "33befda62a3088facd550cf6ed5cc8487d3e07d5",
+    "all_checks_pass": true,
+    "session": "7ead1f96-ba2e-4545-a29a-2afdedb9e42d",
+    "context_id": "/root/smoke_validator"
+  },
+  "postintegration_repeat": {
+    "context": "/root/smoke_repeat",
+    "agent_id": "bb90c249-943d-40c9-b037-fee9e8b362dc",
+    "session_id": "b03119c8-6dd0-4c2a-bf2b-7fac5777c0d3",
+    "worktree": "<fixture>\\repeat",
+    "integrated_sha": "33befda62a3088facd550cf6ed5cc8487d3e07d5",
+    "repeat_sha": "33befda62a3088facd550cf6ed5cc8487d3e07d5",
+    "ticket_state": "done",
+    "ticket_revision": 8,
+    "accepted_at": "2026-09-13T01:15:58.7639126Z",
+    "started_at": "2026-09-13T01:21:02.7032184Z",
+    "ended_at": "2026-09-13T01:21:03.0235813Z",
+    "command": "powershell.exe -NoProfile -File ./probe.ps1 -Conductor C:/Users/zFlei/AppData/Local/Conductor/bin/conductor.exe -DataHome <fixture>/probes/repeat-b03119c8",
+    "probe_home": "<fixture>\\probes\\repeat-b03119c8",
+    "home_absent_before": true,
+    "exit_code": 0,
+    "output": {
+      "data": {
+        "checks": {
+          "cleanup": true,
+          "open": true,
+          "persistence": true,
+          "reopen": true,
+          "wal_created": true
+        },
+        "path": "<fixture>\\probes\\repeat-b03119c8",
+        "probe_path": "<fixture>\\probes\\repeat-b03119c8\\conductor-probe-1283729415.db"
+      },
+      "ok": true
+    },
+    "raw_output": "{\"data\":{\"checks\":{\"cleanup\":true,\"open\":true,\"persistence\":true,\"reopen\":true,\"wal_created\":true},\"path\":\"C:\\\\Users\\\\zFlei\\\\repos\\\\conductor\\\\.worktrees\\\\team-runtime\\\\.superpowers\\\\native-smoke\\\\probes\\\\repeat-b03119c8\",\"probe_path\":\"C:\\\\Users\\\\zFlei\\\\repos\\\\conductor\\\\.worktrees\\\\team-runtime\\\\.superpowers\\\\native-smoke\\\\probes\\\\repeat-b03119c8\\\\conductor-probe-1283729415.db\"},\"ok\":true}",
+    "worktree_status": []
+  }
+}
