@@ -89,6 +89,65 @@ func recordTicketDecisionTx(ctx context.Context, c *sql.Conn, op string, in Tick
 func (s *Service) EditTicket(ctx context.Context, r store.Request, in WorkflowInput) (json.RawMessage, error) {
 	return s.foundationEdit(ctx, r, "edit", in)
 }
+
+// EditTicketMetadata corrects parent or kind without changing a plain ticket's specification or lifecycle evidence.
+func (s *Service) EditTicketMetadata(ctx context.Context, r store.Request, in WorkflowInput) (json.RawMessage, error) {
+	if len(JSON(in)) > TicketTextLimit {
+		return nil, Fail("USAGE", "ticket metadata body exceeds 256 KiB")
+	}
+	return s.Mutate(ctx, in.ProjectID, r.ID, "ticket.metadata", in.SessionID, in, func(c *sql.Conn) (json.RawMessage, error) {
+		actor, e := workflowActor(ctx, c, in, false)
+		if e != nil {
+			return nil, e
+		}
+		v, e := readTicket(ctx, c, in.ProjectID, in.TicketID)
+		if e != nil {
+			return nil, e
+		}
+		if v.Workflow != nil {
+			return nil, Fail("WORKFLOW_TICKET", "metadata-only edits require a plain ticket")
+		}
+		if v.Revision != in.ExpectedRevision {
+			return nil, Fail("REVISION_CONFLICT", "ticket revision changed")
+		}
+		if v.Active {
+			return nil, Fail("ACTIVE_CLAIM", "release ownership before editing ticket metadata")
+		}
+		if strings.TrimSpace(in.Reason) == "" {
+			return nil, Fail("USAGE", "reason required")
+		}
+		var parent any
+		if in.ParentID != "" {
+			p, e := readTicket(ctx, c, in.ProjectID, in.ParentID)
+			if e != nil {
+				return nil, e
+			}
+			parent = p.ID
+			var n int
+			e = c.QueryRowContext(ctx, `WITH RECURSIVE ancestors(id) AS(SELECT ? UNION SELECT m.parent_id FROM ticket_metadata m JOIN ancestors a ON m.ticket_id=a.id WHERE m.parent_id IS NOT NULL) SELECT count(*) FROM ancestors WHERE id=?`, p.ID, v.ID).Scan(&n)
+			if e != nil {
+				return nil, e
+			}
+			if n > 0 {
+				return nil, Fail("CYCLE", "parent cycle")
+			}
+		}
+		if in.Kind == "" {
+			in.Kind = v.Metadata.Kind
+		}
+		if _, e = c.ExecContext(ctx, `UPDATE ticket_metadata SET parent_id=?,kind=? WHERE ticket_id=?`, parent, in.Kind, v.ID); e != nil {
+			return nil, e
+		}
+		if _, e = c.ExecContext(ctx, `UPDATE tickets SET revision=revision+1,updated_at=? WHERE id=?`, Now(), v.ID); e != nil {
+			return nil, e
+		}
+		result, e := readTicket(ctx, c, in.ProjectID, v.ID)
+		if e != nil {
+			return nil, e
+		}
+		return workflowEvent(ctx, c, in, actor, "metadata", map[string]any{"ticket": result})
+	})
+}
 func (s *Service) UnblockTicket(ctx context.Context, r store.Request, in WorkflowInput) (json.RawMessage, error) {
 	return s.foundationEdit(ctx, r, "unblock", in)
 }

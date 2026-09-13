@@ -16,7 +16,7 @@ func Ticket(ctx context.Context, env Env, args []string) (any, error) {
 		return nil, core.Fail("USAGE", "ticket subcommand required")
 	}
 	op := args[0]
-	if op == "edit" || op == "prepare" || op == "authorize" || op == "critique" || op == "dispose" || op == "unblock" {
+	if op == "edit" || op == "metadata" || op == "prepare" || op == "authorize" || op == "critique" || op == "dispose" || op == "unblock" {
 		return WorkflowTicket(ctx, env, args)
 	}
 	values := []string{}

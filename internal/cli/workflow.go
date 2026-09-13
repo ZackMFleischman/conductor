@@ -132,6 +132,9 @@ func WorkflowTicket(ctx context.Context, env Env, args []string) (any, error) {
 	}
 	defer s.Store.DB.Close()
 	in.ProjectID = p.ID
+	if op == "metadata" {
+		return s.EditTicketMetadata(ctx, store.Request{ID: f.Values["request"]}, in)
+	}
 	if op == "edit" {
 		return s.EditTicket(ctx, store.Request{ID: f.Values["request"]}, in)
 	}

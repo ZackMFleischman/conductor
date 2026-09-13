@@ -138,6 +138,52 @@ func TestFoundationPlainGraphAndLifecycle(t *testing.T) {
 	}
 }
 
+func TestFoundationMetadataOnlyEditPreservesAcceptedTicket(t *testing.T) {
+	f := newWorkflowFixture(t, "human")
+	if _, e := f.s.Store.DB.Exec("DELETE FROM workflow_policies WHERE project_id=?", f.p); e != nil {
+		t.Fatal(e)
+	}
+	parent, v := f.ticket("parent"), f.ticket("accepted")
+	raw, e := f.s.ClaimTicket(f.ctx, f.req(), TicketInput{ProjectID: f.p, TicketID: v.ID, SessionID: f.worker, ExpectedRevision: v.Revision, Location: f.g})
+	if e != nil {
+		t.Fatal(e)
+	}
+	json.Unmarshal(raw, &v)
+	raw, e = f.s.SubmitTicket(f.ctx, f.req(), TicketInput{ProjectID: f.p, TicketID: v.ID, SessionID: f.worker, ClaimID: v.ClaimID, ExpectedRevision: v.Revision, Summary: "implemented", Evidence: "tested", QA: "inspect", Commit: "abc"})
+	if e != nil {
+		t.Fatal(e)
+	}
+	json.Unmarshal(raw, &v)
+	raw, e = f.s.AcceptTicket(f.ctx, f.req(), TicketInput{ProjectID: f.p, TicketID: v.ID, SessionID: f.reviewer, ExpectedRevision: v.Revision, Validation: &WorkflowInput{Commit: "abc", Criteria: "accepted", Evidence: "reviewed"}})
+	if e != nil {
+		t.Fatal(e)
+	}
+	json.Unmarshal(raw, &v)
+	if v.State != "done" {
+		t.Fatal(v)
+	}
+	raw, e = f.s.EditTicketMetadata(f.ctx, f.req(), WorkflowInput{ProjectID: f.p, TicketID: v.ID, SessionID: f.reviewer, ExpectedRevision: v.Revision, ParentID: parent.ID, Kind: "bug", Reason: "correct grouping"})
+	if e != nil {
+		t.Fatal(e)
+	}
+	var result struct{ Ticket TicketRecord `json:"ticket"` }
+	json.Unmarshal(raw, &result)
+	if result.Ticket.State != "done" || result.Ticket.Metadata.ParentID == nil || *result.Ticket.Metadata.ParentID != parent.ID || result.Ticket.Metadata.Kind != "bug" {
+		t.Fatal(result.Ticket)
+	}
+	if result.Ticket.Metadata.SubmittedCommit != "abc" || result.Ticket.Metadata.SubmittedSpecRevision != 1 {
+		t.Fatal(result.Ticket.Metadata)
+	}
+	shown, e := f.s.ShowTicket(f.ctx, f.p, v.ID)
+	if e != nil {
+		t.Fatal(e)
+	}
+	history := shown["history"].(map[string]any)
+	if len(history["submissions"].([]map[string]any)) != 1 || len(history["decisions"].([]map[string]any)) != 1 {
+		t.Fatal(history)
+	}
+}
+
 func TestFoundationLegacyAndStoppedDecisions(t *testing.T) {
 	f := newWorkflowFixture(t, "human")
 	f.s.Store.DB.Exec("DELETE FROM workflow_policies WHERE project_id=?", f.p)
