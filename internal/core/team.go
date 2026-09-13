@@ -387,13 +387,15 @@ func launchTeamTx(ctx context.Context, c *sql.Conn, p string, r TeamRun, in Team
 		if e != nil {
 			return e
 		}
-		if state != "ready" || (assigned.Valid && assigned.String != in.AgentID) {
-			return Fail("TICKET_INELIGIBLE", "ticket must be ready and assigned to this identity or unassigned")
-		}
 		if in.Role == "worker" {
+			if state != "ready" || (assigned.Valid && assigned.String != in.AgentID) {
+				return Fail("TICKET_INELIGIBLE", "worker ticket must be ready and assigned to this identity or unassigned")
+			}
 			if e := CheckWorkflowEligibilityTx(ctx, c, p, in.TicketID); e != nil {
 				return e
 			}
+		} else if in.Role == "validator" && state != "review" {
+			return Fail("TICKET_INELIGIBLE", "validator ticket must be awaiting review")
 		}
 		ticket = in.TicketID
 	}

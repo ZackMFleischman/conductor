@@ -229,25 +229,11 @@ func TestTeamHostChangeRequiresNewChallenge(t *testing.T) {
 }
 func TestTeamStopPreservesClaimsAndReclaimsOnlyStoppedChildren(t *testing.T) {
 	f := newTeamFixture(t)
-	r := f.action("start", "start", TeamInput{SessionID: f.supervisor, Profile: f.profile()})
-	in := owned(r)
-	in.Role = "improver"
-	in.AgentID = f.aid
-	r = f.action("launch", "launch", in)
+	r, ticket := f.claimFixture()
 	lid := r.Launches[0].ID
-	in = owned(r)
-	in.LaunchID = lid
-	in.ChildSessionID = f.child
-	in.HostID = "host"
-	r = f.action("register", "register", in)
 	ctx := context.Background()
-	b, e := f.s.CreateTicket(ctx, store.Request{ID: "ticket"}, TicketInput{ProjectID: f.p, Title: "assignment", Body: "test"})
-	if e != nil {
-		t.Fatal(e)
-	}
-	var ticket TicketRecord
-	json.Unmarshal(b, &ticket)
-	b, e = f.s.ClaimTicket(ctx, store.Request{ID: "claim"}, TicketInput{ProjectID: f.p, TicketID: ticket.ID, SessionID: f.child, ExpectedRevision: ticket.Revision, Location: gitctx.Context{CommonDir: "common", Root: "root"}})
+	in := owned(r)
+	b, e := f.s.ClaimTicket(ctx, store.Request{ID: "claim"}, TicketInput{ProjectID: f.p, TicketID: ticket.ID, SessionID: f.child, ExpectedRevision: ticket.Revision, Location: gitctx.Context{CommonDir: "common", Root: "root"}})
 	if e != nil {
 		t.Fatal(e)
 	}
