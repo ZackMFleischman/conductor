@@ -47,6 +47,8 @@ After the isolated checks, the final binary was opened read-only against the exi
 
 The user requested shorter cards after inspecting live data. Descriptions now collapse to four lines, with Show more / Show less only when the rendered text overflows. Full text remains in the safe highlighting/search path. Resize observation adapts the control to card width, and the toggle exposes its expanded state and controlled description. Independent code review found no issues; all 41 frontend tests and the production build passed. Browser inspection on the actual CON board at a narrow viewport confirmed truncation, expansion to full text and collapse. The user subsequently authorized merging the feature branch into main. Active-claim visibility is separately tracked in CON-26; assignment remains the current indicator.
 
+Main was fast-forwarded to `91aceb4b44329512d9b6f03f5e58a72321cdc199`, containing the complete backend, adapter and compact-description implementation. In the dedicated main checkout, `npm ci`, all 41 frontend tests, the production build, `go test ./... -count=1` and `go vet ./...` passed. An initial Go discovery run overlapped npm's replacement of node_modules and failed on a disappearing directory; the sequential rerun passed, recorded as CON-P36. CON-25 was independently accepted. Subsequent landing notes only change documentation.
+
 ## Run from source
 
 Build the Go executable and `web/portal` production assets, then run:
