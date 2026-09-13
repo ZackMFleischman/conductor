@@ -3,6 +3,8 @@ package core
 import (
 	"encoding/json"
 	"testing"
+
+	"github.com/ZackMFleischman/conductor/internal/gitctx"
 )
 
 func TestFoundationPlainAgentDecision(t *testing.T) {
@@ -166,7 +168,9 @@ func TestFoundationMetadataOnlyEditPreservesAcceptedTicket(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	var result struct{ Ticket TicketRecord `json:"ticket"` }
+	var result struct {
+		Ticket TicketRecord `json:"ticket"`
+	}
 	json.Unmarshal(raw, &result)
 	if result.Ticket.State != "done" || result.Ticket.Metadata.ParentID == nil || *result.Ticket.Metadata.ParentID != parent.ID || result.Ticket.Metadata.Kind != "bug" {
 		t.Fatal(result.Ticket)
@@ -186,26 +190,63 @@ func TestFoundationMetadataOnlyEditPreservesAcceptedTicket(t *testing.T) {
 
 func TestFoundationMetadataOnlyEditRejectsGuardsWithoutChangingTicket(t *testing.T) {
 	f := newWorkflowFixture(t, "human")
-	if _, e := f.s.Store.DB.Exec("DELETE FROM workflow_policies WHERE project_id=?", f.p); e != nil { t.Fatal(e) }
+	if _, e := f.s.Store.DB.Exec("DELETE FROM workflow_policies WHERE project_id=?", f.p); e != nil {
+		t.Fatal(e)
+	}
 	parent, v := f.ticket("parent"), f.ticket("target")
 	before := func() TicketRecord { return f.get(v.ID) }
-	assertUnchanged := func(old TicketRecord) { got := f.get(v.ID); if got.State != old.State || got.Revision != old.Revision || got.Metadata.SpecRevision != old.Metadata.SpecRevision || got.Metadata.SubmittedCommit != old.Metadata.SubmittedCommit { t.Fatalf("changed: %#v", got) } }
+	assertUnchanged := func(old TicketRecord) {
+		got := f.get(v.ID)
+		if got.State != old.State || got.Revision != old.Revision || got.Metadata.SpecRevision != old.Metadata.SpecRevision || got.Metadata.SubmittedCommit != old.Metadata.SubmittedCommit {
+			t.Fatalf("changed: %#v", got)
+		}
+	}
 	old := before()
-	_, e := f.s.EditTicketMetadata(f.ctx, f.req(), WorkflowInput{ProjectID:f.p, TicketID:v.ID, SessionID:f.reviewer, ExpectedRevision:old.Revision+1, ParentID:parent.ID, Reason:"stale"})
-	f.fail("REVISION_CONFLICT", e); assertUnchanged(old)
-	_, e = f.s.EditTicketMetadata(f.ctx, f.req(), WorkflowInput{ProjectID:f.p, TicketID:v.ID, SessionID:f.reviewer, ExpectedRevision:old.Revision, ParentID:"missing", Reason:"missing"})
-	f.fail("NOT_FOUND", e); assertUnchanged(old)
-	_, e = f.s.EditTicketMetadata(f.ctx, f.req(), WorkflowInput{ProjectID:f.p, TicketID:v.ID, SessionID:f.reviewer, ExpectedRevision:old.Revision, ParentID:v.ID, Reason:"cycle"})
-	f.fail("CYCLE", e); assertUnchanged(old)
-	_, e = f.s.ClaimTicket(f.ctx, f.req(), TicketInput{ProjectID:f.p, TicketID:v.ID, SessionID:f.worker, ExpectedRevision:old.Revision, Location:f.g})
-	if e != nil { t.Fatal(e) }
+	_, e := f.s.EditTicketMetadata(f.ctx, f.req(), WorkflowInput{ProjectID: f.p, TicketID: v.ID, SessionID: f.reviewer, ExpectedRevision: old.Revision + 1, ParentID: parent.ID, Reason: "stale"})
+	f.fail("REVISION_CONFLICT", e)
+	assertUnchanged(old)
+	otherRaw, e := f.s.Init(f.ctx, gitctx.Context{CommonDir: "other-common", Root: "other-root"}, "OTHER", "other-init")
+	if e != nil {
+		t.Fatal(e)
+	}
+	var other Project
+	if e = json.Unmarshal(otherRaw, &other); e != nil {
+		t.Fatal(e)
+	}
+	otherRaw, e = f.s.CreateTicket(f.ctx, f.req(), TicketInput{ProjectID: other.ID, Title: "other-parent", Body: "criteria"})
+	if e != nil {
+		t.Fatal(e)
+	}
+	var otherParent TicketRecord
+	if e = json.Unmarshal(otherRaw, &otherParent); e != nil {
+		t.Fatal(e)
+	}
+	_, e = f.s.EditTicketMetadata(f.ctx, f.req(), WorkflowInput{ProjectID: f.p, TicketID: v.ID, SessionID: f.reviewer, ExpectedRevision: old.Revision, ParentID: otherParent.ID, Reason: "cross-project"})
+	f.fail("NOT_FOUND", e)
+	assertUnchanged(old)
+	_, e = f.s.EditTicketMetadata(f.ctx, f.req(), WorkflowInput{ProjectID: f.p, TicketID: v.ID, SessionID: f.reviewer, ExpectedRevision: old.Revision, ParentID: "missing", Reason: "missing"})
+	f.fail("NOT_FOUND", e)
+	assertUnchanged(old)
+	_, e = f.s.EditTicketMetadata(f.ctx, f.req(), WorkflowInput{ProjectID: f.p, TicketID: v.ID, SessionID: f.reviewer, ExpectedRevision: old.Revision, ParentID: v.ID, Reason: "cycle"})
+	f.fail("CYCLE", e)
+	assertUnchanged(old)
+	_, e = f.s.ClaimTicket(f.ctx, f.req(), TicketInput{ProjectID: f.p, TicketID: v.ID, SessionID: f.worker, ExpectedRevision: old.Revision, Location: f.g})
+	if e != nil {
+		t.Fatal(e)
+	}
 	old = before()
-	_, e = f.s.EditTicketMetadata(f.ctx, f.req(), WorkflowInput{ProjectID:f.p, TicketID:v.ID, SessionID:f.reviewer, ExpectedRevision:f.get(v.ID).Revision, ParentID:parent.ID, Reason:"active"})
-	f.fail("ACTIVE_CLAIM", e); assertUnchanged(old)
-	if _, e = f.s.Store.DB.Exec("UPDATE claims SET released_at=? WHERE ticket_id=?", Now(), v.ID); e != nil { t.Fatal(e) }
-	if _, e = f.s.Store.DB.Exec("INSERT INTO workflow_ticket_specs(ticket_id,project_id,validation_mode,required_checks,policy_revision,execution_mode,plan_review) VALUES(?,?,?,?,?,?,?)", v.ID,f.p,"human","[]",1,"delegated","lightweight"); e != nil { t.Fatal(e) }
-	_, e = f.s.EditTicketMetadata(f.ctx, f.req(), WorkflowInput{ProjectID:f.p, TicketID:v.ID, SessionID:f.reviewer, ExpectedRevision:f.get(v.ID).Revision, ParentID:parent.ID, Reason:"policy"})
-	f.fail("WORKFLOW_TICKET", e); assertUnchanged(old)
+	_, e = f.s.EditTicketMetadata(f.ctx, f.req(), WorkflowInput{ProjectID: f.p, TicketID: v.ID, SessionID: f.reviewer, ExpectedRevision: f.get(v.ID).Revision, ParentID: parent.ID, Reason: "active"})
+	f.fail("ACTIVE_CLAIM", e)
+	assertUnchanged(old)
+	if _, e = f.s.Store.DB.Exec("UPDATE claims SET released_at=? WHERE ticket_id=?", Now(), v.ID); e != nil {
+		t.Fatal(e)
+	}
+	if _, e = f.s.Store.DB.Exec("INSERT INTO workflow_ticket_specs(ticket_id,project_id,validation_mode,required_checks,policy_revision,execution_mode,plan_review) VALUES(?,?,?,?,?,?,?)", v.ID, f.p, "human", "[]", 1, "delegated", "lightweight"); e != nil {
+		t.Fatal(e)
+	}
+	_, e = f.s.EditTicketMetadata(f.ctx, f.req(), WorkflowInput{ProjectID: f.p, TicketID: v.ID, SessionID: f.reviewer, ExpectedRevision: f.get(v.ID).Revision, ParentID: parent.ID, Reason: "policy"})
+	f.fail("WORKFLOW_TICKET", e)
+	assertUnchanged(old)
 }
 
 func TestFoundationLegacyAndStoppedDecisions(t *testing.T) {
