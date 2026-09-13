@@ -6,6 +6,7 @@ import VisibilityOutlined from '@mui/icons-material/VisibilityOutlined';
 import ScienceOutlined from '@mui/icons-material/ScienceOutlined';
 import type { BoardSnapshot, BoardSource } from './board';
 import { KanbanBoard } from './components/KanbanBoard';
+import { findSearchMatches } from './search';
 import { theme } from './theme';
 
 type LoadState = { status: 'loading' } | { status: 'error' } | { status: 'ready'; board: BoardSnapshot };
@@ -32,11 +33,11 @@ export function App({ source }: { source: BoardSource }) {
 
   const board = state.status === 'ready' ? state.board : undefined;
   const tickets = board?.tickets ?? [];
-  const term = query.trim().toLowerCase();
+  const term = query.trim();
   const filtered = tickets.filter(ticket => {
     const matchesOwner = assignee === 'all' || (assignee === 'unassigned' ? ticket.assignee === null : ticket.assignee !== null && 'owner:' + ticket.assignee.id === assignee);
-    const searchable = [ticket.key, ticket.title, ticket.description, ticket.assignee?.name ?? 'Unassigned', ...ticket.blockers.flatMap(b => [b.reason, b.ticketKey ?? ''])].join(' ').toLowerCase();
-    return matchesOwner && searchable.includes(term);
+    const searchable = [ticket.key, ticket.title, ticket.description, ticket.assignee?.name ?? 'Unassigned', ...ticket.blockers.flatMap(b => [b.reason, b.ticketKey ?? ''])];
+    return matchesOwner && (!term || searchable.some(text => findSearchMatches(text, term).length > 0));
   });
   const owners = Array.from(new Map(tickets.flatMap(t => t.assignee ? [[t.assignee.id, t.assignee] as const] : [])).values()).sort((a, b) => a.name.localeCompare(b.name));
   const hasFilters = Boolean(query || assignee !== 'all');
@@ -79,7 +80,7 @@ export function App({ source }: { source: BoardSource }) {
           <Typography component="h2" variant="h3">{tickets.length === 0 ? 'No tickets yet' : 'No tickets match these filters'}</Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>{tickets.length === 0 ? 'Tickets will appear here when the source has work to show.' : 'Try another search or clear the filters to see all work.'}</Typography>
         </Paper>}
-        <KanbanBoard tickets={filtered} />
+        <KanbanBoard tickets={filtered} query={term} />
         <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>Assignment shows ownership, not an active claim. This board does not change ticket state.</Typography>
       </>}
     </Box>

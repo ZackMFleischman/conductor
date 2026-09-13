@@ -14,7 +14,7 @@ describe('read-only work board', () => {
     }
     expect(screen.getByText('Fixture data')).toBeInTheDocument();
     expect(screen.getByText('Read only')).toBeInTheDocument();
-    expect(screen.getAllByRole('article')).toHaveLength(8);
+    expect(screen.getAllByRole('article')).toHaveLength(12);
     expect(screen.getAllByText('Unassigned')).not.toHaveLength(0);
     expect(screen.getByText('Waiting for an agreed read API contract.')).toBeInTheDocument();
     expect(screen.getByText((await fixtureBoardSource.load()).tickets[0].description)).toBeInTheDocument();
@@ -30,7 +30,7 @@ describe('read-only work board', () => {
     expect(screen.queryAllByRole('article')).toHaveLength(0);
     expect(screen.getByText('No tickets match these filters')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Clear filters' }));
-    expect(screen.getAllByRole('article')).toHaveLength(8);
+    expect(screen.getAllByRole('article')).toHaveLength(12);
     await user.selectOptions(screen.getByRole('combobox', { name: 'Assignee' }), screen.getByRole('option', { name: 'docs-agent' }));
     expect(screen.getAllByRole('article')).toHaveLength(2);
   });

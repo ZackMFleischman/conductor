@@ -27,3 +27,9 @@ Run `npm test` and `npm run build` from web/portal. Browser QA checks all five l
 The user found the first header too spacious and vertical. Revised layout places Work board, Fixture data and summary counts on one row, uses a short source notice, tightens filter/card spacing and removes artificial lane minimum heights. Full descriptions and blocker explanations remain visible. At 1440px, the board now starts around y=192px; the original started around y=397px. This compact design supersedes the earlier separate project eyebrow and full-width notice banner.
 
 Second user feedback removed the redundant fixture explanation and result-count line. Fixture/read-only badges remain. Search and assignee controls now use a 32px compact row with accessible names; counts stay only in the summary and lane headings.
+
+## Density and search follow-up (CON-17)
+
+Default ticket cards now use 12px body text, roughly 13px titles, tighter padding and smaller ownership/status rows. Descriptions remain complete. The fixture set has 12 tickets, including four Ready and three each in In progress and Blocked, to make density visible.
+
+Search highlights all non-overlapping literal matches in ticket keys, titles, descriptions, assignees, blocker keys and reasons. Filtering and highlighting use the same case-insensitive Unicode regex with escaped query text and trimmed outside whitespace. Matches never span unrelated fields. Original text stays intact as React text; no HTML is interpreted. Clearing search removes highlights. These changes remain fixture-only and leave the API proposal unchanged.
