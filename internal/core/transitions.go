@@ -11,5 +11,8 @@ func CheckTicketClaimTx(ctx context.Context, c *sql.Conn, projectID, ticketID, s
 	if e := CheckTicketDependenciesTx(ctx, c, projectID, ticketID); e != nil {
 		return e
 	}
-	return CheckWorkflowEligibilityTx(ctx, c, projectID, ticketID)
+	if e := CheckWorkflowEligibilityTx(ctx, c, projectID, ticketID); e != nil {
+		return e
+	}
+	return CheckTeamClaimTx(ctx, c, projectID, ticketID, sessionID)
 }

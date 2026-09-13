@@ -1,9 +1,56 @@
 package core
 
 import (
+	"context"
 	"encoding/json"
 	"testing"
+
+	"github.com/ZackMFleischman/conductor/internal/gitctx"
+	"github.com/ZackMFleischman/conductor/internal/store"
 )
+
+func TestManagedClaimProductionFenceAndReplay(t *testing.T) {
+	f := newTeamFixture(t)
+	_, ticket := f.claimFixture()
+	ctx := context.Background()
+	wrong := f.ticket()
+	in := TicketInput{ProjectID: f.p, TicketID: wrong.ID, SessionID: f.child, ExpectedRevision: wrong.Revision, Location: gitctx.Context{CommonDir: "common", Root: "worker"}}
+	_, err := f.s.ClaimTicket(ctx, store.Request{ID: "wrong-ticket"}, in)
+	workflowFail(t, "TEAM_ASSIGNMENT", err)
+	in.TicketID, in.ExpectedRevision = ticket.ID, ticket.Revision
+	raw, err := f.s.ClaimTicket(ctx, store.Request{ID: "one-attempt"}, in)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var claimed TicketRecord
+	if err = json.Unmarshal(raw, &claimed); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = f.s.ClaimTicket(ctx, store.Request{ID: "one-attempt"}, in); err != nil {
+		t.Fatal("identical replay failed", err)
+	}
+	_, err = f.s.ReleaseTicket(ctx, store.Request{ID: "release-attempt"}, TicketInput{ProjectID: f.p, TicketID: ticket.ID, SessionID: f.child, ClaimID: claimed.ClaimID, ExpectedRevision: claimed.Revision, Reason: "checkpoint"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw, err = f.s.ClaimTicket(ctx, store.Request{ID: "one-attempt"}, in)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = json.Unmarshal(raw, &claimed); err != nil {
+		t.Fatal(err)
+	}
+	if claimed.Active {
+		t.Fatal("historical inactive claim replay appeared active")
+	}
+	current, err := readTicket(ctx, f.s.Store.DB, f.p, ticket.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	in.ExpectedRevision = current.Revision
+	_, err = f.s.ClaimTicket(ctx, store.Request{ID: "second-attempt"}, in)
+	workflowFail(t, "CHILD_REUSED", err)
+}
 
 func TestTeamWorkerLaunchChecksWorkflowDependencies(t *testing.T) {
 	f := newWorkflowFixture(t, "independent_agent")

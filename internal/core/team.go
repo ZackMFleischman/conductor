@@ -391,6 +391,9 @@ func launchTeamTx(ctx context.Context, c *sql.Conn, p string, r TeamRun, in Team
 			if state != "ready" || (assigned.Valid && assigned.String != in.AgentID) {
 				return Fail("TICKET_INELIGIBLE", "worker ticket must be ready and assigned to this identity or unassigned")
 			}
+			if e := CheckTicketDependenciesTx(ctx, c, p, in.TicketID); e != nil {
+				return e
+			}
 			if e := CheckWorkflowEligibilityTx(ctx, c, p, in.TicketID); e != nil {
 				return e
 			}
