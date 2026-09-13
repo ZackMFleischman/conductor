@@ -8,6 +8,8 @@ Implements CON-19 and CON-13 against schema 3. The frontend proposal at `feat/po
 
 Only loopback Host names and same-origin browser requests are allowed, including forwarded localhost ports. Read failures return safe JSON errors, never database paths/SQL. Missing project: 404. Unavailable/unsupported/corrupt store: 503. Mutating methods: 405. The service opens the existing registry read-only, requires schema 3, and never creates or migrates it.
 
+GET requests must be bodyless; a declared body receives 400 and connection close without draining it. Mutating methods remain 405 even with a body. Shutdown cancels streams and waits for HTTP connections to drain before closing the database and assets.
+
 `GET /api/v1/projects` returns `{ "projects": [{"id":"UUID","name":"CON","description":""}] }`. Until display metadata exists, name is the project prefix and description is empty; repository paths are not exposed as descriptions.
 
 `GET /api/v1/projects/{projectId}/board` returns the proposed board object directly, plus an additive opaque `revision` string. IDs are exact project UUIDs, not prefixes. Every project ticket appears once in stable creation/id order. Arrays are always arrays, including empty tickets/ancestors/blockers. Unassigned is explicit null. Text is passed through as text/Markdown source, never rendered as HTML by this API. Responses use `Cache-Control: no-store`.
