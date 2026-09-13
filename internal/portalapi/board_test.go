@@ -65,6 +65,28 @@ func readBoard(t *testing.T, reader DBReader, project string) Board {
 	return b
 }
 
+func TestBoardIncludesStoredDetails(t *testing.T) {
+	f := newBoardFixture(t)
+	f.project(t, "p", "P")
+	f.ticket(t, "details", "p", "review")
+	boardExec(t, f.writer, `UPDATE ticket_metadata SET kind='bug' WHERE ticket_id='details'`)
+	boardExec(t, f.writer, `UPDATE tickets SET summary='Summary',evidence='Evidence',qa='QA' WHERE id='details'`)
+	b := readBoard(t, f.reader, "p")
+	data, err := json.Marshal(b.Tickets[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	var fields map[string]any
+	if err := json.Unmarshal(data, &fields); err != nil {
+		t.Fatal(err)
+	}
+	for key, want := range map[string]string{"kind": "bug", "summary": "Summary", "evidence": "Evidence", "qa": "QA", "createdAt": "2026-01-01", "updatedAt": "2026-01-01"} {
+		if fields[key] != want {
+			t.Errorf("%s = %v, want %s", key, fields[key], want)
+		}
+	}
+}
+
 func TestDBReaderEmptyProjectsAndParameterizedLookup(t *testing.T) {
 	f := newBoardFixture(t)
 	projects, err := f.reader.Projects(context.Background())

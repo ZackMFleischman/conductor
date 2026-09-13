@@ -14,10 +14,13 @@ export const statusMeta: Record<TicketStatus, { label: string; color: string; ti
   done: { label: 'Done', color: '#287661', tint: '#e8f3ed' },
 };
 
-export function TicketCard({ ticket, query, onGroupFilter, updated = false }: { ticket: BoardTicket; query: string; onGroupFilter: (value: string) => void; updated?: boolean }) {
+export function TicketCard({ ticket, query, onGroupFilter, onOpen, updated = false }: { ticket: BoardTicket; query: string; onGroupFilter: (value: string) => void; onOpen?: (key: string) => void; updated?: boolean }) {
   const meta = statusMeta[ticket.status];
   const blockers = ticket.blockers.length ? ticket.blockers : ticket.status === 'blocked' ? [{ reason: 'Blocker details unavailable.' }] : [];
-  return <Paper component="article" variant="outlined" aria-labelledby={`ticket-${ticket.id}`} data-live-updated={updated || undefined} sx={{
+  return <Paper component="article" variant="outlined" tabIndex={onOpen ? 0 : undefined} onKeyDown={event => {
+    if (event.target === event.currentTarget && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); onOpen?.(ticket.key); }
+  }} onClick={event => { if (!(event.target as HTMLElement).closest('a,button,input')) onOpen?.(ticket.key); }} aria-labelledby={`ticket-${ticket.id}`} data-live-updated={updated || undefined} sx={{
+    cursor: onOpen ? 'pointer' : undefined, '&:focus-visible': { outline: '2px solid #285d4f', outlineOffset: 2 },
     p: 1, boxShadow: '0 2px 3px #25385804', overflowWrap: 'anywhere',
     bgcolor: updated ? '#fff0b3' : 'background.paper',
     borderColor: updated ? '#d69e24' : 'divider',
@@ -26,7 +29,7 @@ export function TicketCard({ ticket, query, onGroupFilter, updated = false }: { 
   }}>
     <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between', gap: 0.75, mb: 0.5 }}>
       <Typography variant="caption" sx={{ fontFamily: 'Consolas, monospace', color: 'text.secondary', letterSpacing: '.02em' }}><HighlightedText text={ticket.key} query={query} /></Typography>
-      <Chip size="small" label={meta.label} sx={{ height: 18, fontSize: '0.66rem', borderRadius: 1, bgcolor: meta.tint, color: meta.color }} />
+      <Stack direction="row" spacing={0.5}><Chip size="small" label={ticket.kind || 'implementation'} sx={{ height: 18, fontSize: '0.66rem', borderRadius: 1 }} /><Chip size="small" label={meta.label} sx={{ height: 18, fontSize: '0.66rem', borderRadius: 1, bgcolor: meta.tint, color: meta.color }} /></Stack>
     </Stack>
     <Typography component="h3" variant="h3" id={`ticket-${ticket.id}`} sx={{ mb: 0.5 }}><HighlightedText text={ticket.title} query={query} /></Typography>
     <TicketDescription text={ticket.description || 'No description provided.'} query={query} />

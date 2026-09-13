@@ -151,7 +151,8 @@ func readBoardTickets(ctx context.Context, tx *sql.Tx, projectID string) (map[st
 	// project-filtered INNER JOIN would silently hide missing/cross-project data.
 	rows, err := tx.QueryContext(ctx, `SELECT t.id,t.display_key,t.title,t.body,t.state,t.assigned_agent_id,
 		m.project_id,m.spec_revision,m.parent_id,m.blocked_reason,
-		a.project_id,a.name,s.project_id,s.prepared_revision,s.authorized_revision,s.paused
+		a.project_id,a.name,s.project_id,s.prepared_revision,s.authorized_revision,s.paused,
+		COALESCE(m.kind,'implementation'),t.summary,t.evidence,t.qa,t.created_at,t.updated_at
 		FROM tickets t
 		LEFT JOIN ticket_metadata m ON m.ticket_id=t.id
 		LEFT JOIN agents a ON a.id=t.assigned_agent_id
@@ -168,7 +169,8 @@ func readBoardTickets(ctx context.Context, tx *sql.Tx, projectID string) (map[st
 		var assignment, metadataProject, blockedReason, agentProject, agentName, policyProject sql.NullString
 		var specRevision, prepared, authorized, paused sql.NullInt64
 		if err = rows.Scan(&v.ticket.ID, &v.ticket.Key, &v.ticket.Title, &v.ticket.Description, &v.ticket.Status, &assignment,
-			&metadataProject, &specRevision, &v.parent, &blockedReason, &agentProject, &agentName, &policyProject, &prepared, &authorized, &paused); err != nil {
+			&metadataProject, &specRevision, &v.parent, &blockedReason, &agentProject, &agentName, &policyProject, &prepared, &authorized, &paused,
+			&v.ticket.Kind, &v.ticket.Summary, &v.ticket.Evidence, &v.ticket.QA, &v.ticket.CreatedAt, &v.ticket.UpdatedAt); err != nil {
 			return nil, nil, err
 		}
 		if !metadataProject.Valid || metadataProject.String != projectID || !specRevision.Valid || specRevision.Int64 < 1 || !blockedReason.Valid {

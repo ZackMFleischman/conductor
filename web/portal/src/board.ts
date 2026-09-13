@@ -8,6 +8,12 @@ export interface BoardTicket {
   key: string;
   title: string;
   description: string;
+  kind?: string;
+  summary?: string;
+  evidence?: string;
+  qa?: string;
+  createdAt?: string;
+  updatedAt?: string;
   status: TicketStatus;
   assignee: Assignee | null;
   blockers: Blocker[];

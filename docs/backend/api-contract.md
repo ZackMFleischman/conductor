@@ -18,6 +18,8 @@ GET requests must be bodyless; a declared body receives 400 and connection close
 
 Each ticket contains id, key, title, description, status, assignee, blockers, and `ancestors` ordered nearest parent to root; each reference has id/key/title. Compute ancestry from every ticket in the project, not just currently filtered rows. Empty means known absence. Missing metadata/parent/dependency/assignee, cross-project references, or ancestry cycles fail the whole snapshot instead of leaking another project's data or silently omitting tickets. No pagination or truncation in v1.
 
+Ticket details also include additive string fields `kind` (the recorded work type), `summary`, `evidence`, `qa`, `createdAt`, and `updatedAt`. The text fields retain their Markdown source; timestamps retain their stored values. Older snapshots without these fields remain readable by the frontend. Done pagination is presentation-only: the full snapshot remains available for search and ticket links. The activity sidebar compares accepted snapshots in memory, keeps the latest 200 ticket changes since opening the board, and may combine intermediate changes during reconnect; it is not an audit log.
+
 All mapping reads use one short SQLite read transaction. The browser never determines claim eligibility.
 
 | Stored state/condition | Display status and reason |

@@ -38,6 +38,7 @@ export function decodeBoard(value: unknown, projectId: string): LiveSnapshot {
     const owner = t.assignee === null ? null : object(t.assignee);
     return {
       ...reference(t), description: text(t.description), status: t.status as BoardTicket['status'],
+      ...Object.fromEntries(['kind', 'summary', 'evidence', 'qa', 'createdAt', 'updatedAt'].filter(key => t[key] !== undefined).map(key => [key, text(t[key])])),
       assignee: owner === null ? null : { id: text(owner.id, true), name: text(owner.name, true) },
       blockers: array(t.blockers).map(value => {
         const b = object(value);

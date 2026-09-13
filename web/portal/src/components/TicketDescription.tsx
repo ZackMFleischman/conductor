@@ -1,10 +1,12 @@
-import { memo, useId, useLayoutEffect, useRef, useState } from 'react';
+import { memo, useContext, useId, useLayoutEffect, useRef, useState } from 'react';
 import { Box, Button, Typography } from '@mui/material';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { highlightMarkdown } from './highlightMarkdown';
+import { linkTicketReferences, TicketLinksContext } from './TicketLinks';
 
-export const TicketDescription = memo(function TicketDescription({ text, query }: { text: string; query: string }) {
+export const TicketDescription = memo(function TicketDescription({ text, query, full = false }: { text: string; query: string; full?: boolean }) {
+  const { keys, open } = useContext(TicketLinksContext);
   const id = useId();
   const element = useRef<HTMLDivElement>(null);
   const [expanded, setExpanded] = useState(false);
@@ -27,7 +29,7 @@ export const TicketDescription = memo(function TicketDescription({ text, query }
   }, [text, query]);
   return <>
     <Typography component="div" id={id} variant="body2" color="text.secondary" sx={{
-      maxHeight: expanded ? 'none' : '5.6em', overflow: 'hidden', lineHeight: 1.4,
+      maxHeight: full || expanded ? 'none' : '5.6em', overflow: 'hidden', lineHeight: 1.4,
     }}>
       <Box ref={element} sx={{
         overflowWrap: 'anywhere',
@@ -47,14 +49,18 @@ export const TicketDescription = memo(function TicketDescription({ text, query }
         '& .contains-task-list': { listStyle: 'none', pl: 0 },
         '& input[type="checkbox"]': { mr: 0.5 },
       }}>
-        <Markdown remarkPlugins={[remarkGfm]} remarkRehypeOptions={{ clobberPrefix: `${id}-` }} rehypePlugins={[[highlightMarkdown, { query }]]} components={{
-          a: ({ node: _node, ...props }) => <a {...props} aria-describedby={props['aria-describedby'] === 'footnote-label' ? `${id}-footnote-label` : props['aria-describedby']} tabIndex={!expanded && overflows ? -1 : undefined} />,
+        <Markdown remarkPlugins={[remarkGfm]} remarkRehypeOptions={{ clobberPrefix: `${id}-` }} rehypePlugins={[[linkTicketReferences, { keys }], [highlightMarkdown, { query }]]} components={{
+          a: ({ node: _node, ...props }) => <a {...props} onClick={event => {
+            event.stopPropagation();
+            const key = props.href?.startsWith('#ticket=') ? props.href.slice(8) : props.href?.startsWith('#') ? props.href.slice(1) : '';
+            if (key && keys.has(key)) { event.preventDefault(); open(key); }
+          }} aria-describedby={props['aria-describedby'] === 'footnote-label' ? `${id}-footnote-label` : props['aria-describedby']} tabIndex={!full && !expanded && overflows ? -1 : undefined} />,
           h2: ({ node: _node, ...props }) => <h2 {...props} id={props.id === 'footnote-label' ? `${id}-footnote-label` : props.id} />,
           table: ({ node: _node, ...props }) => <Box sx={{ overflowX: 'auto' }}><table {...props} /></Box>,
         }}>{text}</Markdown>
       </Box>
     </Typography>
-    {overflows && <Button size="small" aria-expanded={expanded} aria-controls={id}
+    {!full && overflows && <Button size="small" aria-expanded={expanded} aria-controls={id}
       onClick={() => setExpanded(value => !value)} sx={{ minWidth: 0, p: 0, mt: 0.25, fontSize: '0.68rem' }}>
       {expanded ? 'Show less' : 'Show more'}
     </Button>}
