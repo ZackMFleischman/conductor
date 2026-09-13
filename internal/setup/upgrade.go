@@ -37,8 +37,9 @@ func skillDestination(key string, o Options, host string) (string, error) {
 }
 
 // preservedAddition accepts only line additions that the next canonical file
-// already contains in the same order. Replacements and deletions remain owned
-// content conflicts, so a preview cannot silently overwrite a local edit.
+// already contains in the same order. CRLF and LF terminators are equivalent;
+// replacements and deletions remain owned content conflicts, so a preview
+// cannot silently overwrite a local edit.
 func preservedAddition(base, current, next []byte) bool {
 	if bytes.Equal(base, current) || bytes.Equal(current, next) {
 		return false
@@ -50,11 +51,29 @@ func preservedAddition(base, current, next []byte) bool {
 func lineSubsequence(need, have [][]byte) bool {
 	index := 0
 	for _, line := range have {
-		if index < len(need) && bytes.Equal(need[index], line) {
+		if index < len(need) && sameLine(need[index], line) {
 			index++
 		}
 	}
 	return index == len(need)
+}
+
+func sameLine(a, b []byte) bool {
+	if bytes.Equal(a, b) {
+		return true
+	}
+	if len(a) == 0 || len(b) == 0 || a[len(a)-1] != '\n' || b[len(b)-1] != '\n' {
+		return false
+	}
+	a = a[:len(a)-1]
+	b = b[:len(b)-1]
+	if len(a) > 0 && a[len(a)-1] == '\r' {
+		a = a[:len(a)-1]
+	}
+	if len(b) > 0 && b[len(b)-1] == '\r' {
+		b = b[:len(b)-1]
+	}
+	return bytes.Equal(a, b)
 }
 
 // Persist both known old and desired bytes before changing any installed file.
