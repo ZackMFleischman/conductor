@@ -10,7 +10,7 @@ import (
 
 func knownSkill(name string) bool {
 	switch name {
-	case "conductor-work", "conductor-plan", "conductor-worker", "conductor-orchestrator", "conductor-retrospective", "conductor-workflow-improver":
+	case "conductor-work", "conductor-onboard", "conductor-plan", "conductor-worker", "conductor-orchestrator", "conductor-retrospective", "conductor-workflow-improver":
 		return true
 	}
 	return false

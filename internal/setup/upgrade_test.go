@@ -20,6 +20,7 @@ func TestSkillBundleUpgradeAndInterruptedRepair(t *testing.T) {
 	originalBootstrap := get(t, filepath.Join(o.CodexHome, "AGENTS.md"))
 	o.SkillFiles["SKILL.md"] = []byte("updated work skill")
 	o.SkillFiles["conductor-plan/SKILL.md"] = []byte("planning skill")
+	o.SkillFiles["conductor-onboard/SKILL.md"] = []byte("onboarding skill")
 	edits, err := Plan(o)
 	if err != nil {
 		t.Fatal(err)
@@ -44,6 +45,9 @@ func TestSkillBundleUpgradeAndInterruptedRepair(t *testing.T) {
 	if !bytes.Equal(get(t, filepath.Join(o.UserHome, ".agents", "skills", "conductor-plan", "SKILL.md")), o.SkillFiles["conductor-plan/SKILL.md"]) {
 		t.Fatal("additional skill not installed")
 	}
+	if !bytes.Equal(get(t, filepath.Join(o.UserHome, ".agents", "skills", "conductor-onboard", "SKILL.md")), o.SkillFiles["conductor-onboard/SKILL.md"]) {
+		t.Fatal("onboarding skill not installed after interrupted upgrade")
+	}
 	if !bytes.Equal(get(t, filepath.Join(o.CodexHome, "AGENTS.md")), originalBootstrap) {
 		t.Fatal("upgrade changed bootstrap")
 	}
@@ -61,6 +65,9 @@ func TestSkillBundleUpgradeAndInterruptedRepair(t *testing.T) {
 	}
 	if _, err = os.Stat(filepath.Join(o.UserHome, ".agents", "skills", "conductor-plan", "SKILL.md")); !os.IsNotExist(err) {
 		t.Fatal("additional skill not removed")
+	}
+	if _, err = os.Stat(filepath.Join(o.UserHome, ".agents", "skills", "conductor-onboard", "SKILL.md")); !os.IsNotExist(err) {
+		t.Fatal("onboarding skill not removed")
 	}
 }
 

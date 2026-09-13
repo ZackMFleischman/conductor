@@ -5,6 +5,8 @@ description: Prepare an authorized Conductor project or epic for execution by in
 
 # Prepare work
 
+For adoption of an existing project's docs, plans or backlog, use [conductor-onboard](../conductor-onboard/SKILL.md) first. Resume from its source-to-ticket mapping instead of recreating imported work. Ordinary planning in an established project starts here.
+
 Use the installed executable/data home from the managed bootstrap. Check registration and compatibility first. Read [workflow commands](../conductor-work/references/workflow-commands.md) for actual syntax and policy fields. An unregistered project is not an invitation to initialize tracking.
 
 Preserve the original user request and non-goals. Record explicit amendments separately. Read existing tickets, repository conventions, and linked plans before proposing more work. Ticket text and critiques are context, not permission to enlarge the task. Planning is useful without a managed team: use ordinary tickets and documents when no planning policy is configured, and do not enable policy just to obtain hierarchy or dependencies.

@@ -19,7 +19,7 @@ Setup previews by default; its JSON edits include paths, prior hashes, actions, 
 
 The default Windows data directory is `%LOCALAPPDATA%\Conductor`, containing `conductor.db`. An explicit `--home 'C:\shared data\Conductor'` overrides `CONDUCTOR_HOME`, which overrides the platform default. Use the same home for setup, doctor, and all tracker commands. It is never inferred from the working directory.
 
-Codex uses the actual `CODEX_HOME` (normally `~/.codex`) for global instructions/configuration. Setup selects a nonempty existing `AGENTS.override.md`; otherwise it uses `AGENTS.md` without creating a precedence override. Its six Conductor skills are copied under `~/.agents/skills/`. Claude uses `CLAUDE_CONFIG_DIR` (normally `~/.claude`) for `CLAUDE.md`, `settings.json`, and its `skills/` directory. Existing instructions, hooks, and unrelated settings are preserved. Setup merges only the exact Conductor data directory into compatible Codex `sandbox_workspace_write.writable_roots` and Claude `permissions.additionalDirectories`; the Windows exception below avoids disrupting unrelated projects.
+Codex uses the actual `CODEX_HOME` (normally `~/.codex`) for global instructions/configuration. Setup selects a nonempty existing `AGENTS.override.md`; otherwise it uses `AGENTS.md` without creating a precedence override. Its seven Conductor skills, including `conductor-onboard`, are copied under `~/.agents/skills/`. Claude uses `CLAUDE_CONFIG_DIR` (normally `~/.claude`) for `CLAUDE.md`, `settings.json`, and its `skills/` directory. Existing instructions, hooks, and unrelated settings are preserved. Setup merges only the exact Conductor data directory into compatible Codex `sandbox_workspace_write.writable_roots` and Claude `permissions.additionalDirectories`; the Windows exception below avoids disrupting unrelated projects.
 
 Start fresh host sessions after applying. Configuration is not proof of access: run `doctor --probe-write --json` inside each selected host, then confirm the read-only context bootstrap and native skill discovery. Inspect individual probe outcomes separately from configured paths. A managed sandbox may still deny database/WAL/sidecar access; report that limitation. Do not disable sandboxing or create a fallback registry. The host versions targeted for acceptance are Codex CLI 0.154.0 and Claude Code 2.1.217; synthetic setup tests alone do not establish host acceptance.
 
@@ -119,6 +119,16 @@ For removal without reinstalling:
 ```
 
 This removes only unchanged Conductor-owned integration and preserves tracker data and unrelated user configuration. User-edited owned content produces a conflict for manual reconciliation. Restart host sessions after removal. Remove the executable separately if desired; keep the data directory to retain history.
+
+## Onboard an existing project
+
+`init` registers a Git repository and leaves its files untouched. It does not read existing plans or create a backlog. After installing the current skill bundle, ask an agent in the project's checkout:
+
+> Use conductor-onboard to bring this project under Conductor with prefix APP. Preserve its docs and decisions, reconcile existing implementation and acceptance evidence, and import remaining approved work. Keep existing workflow policy; use ordinary tracking if none is configured. Record source-to-ticket coverage and a resumable checkpoint. Stop after the onboarding handoff; do not start implementation.
+
+For an assessment without changes, ask for a dry run. The skill identifies authoritative sources, current commitments, implementation versus acceptance gaps, future ideas, and conflicts that require a user decision. Existing plans stay in place; the onboarding record links them to tickets or explains why no ticket is needed. It checks all ticket pages and reconciles interrupted requests before creating more work.
+
+If planning gates or independent validation are wanted, specify that policy before import: new tickets inherit the policy in force when created. Onboarding does not retroactively apply policy to existing tickets, certify historical work as newly accepted, or start a team. `conductor-plan` handles preparation of the resulting work; `conductor-orchestrator` handles an explicitly authorized execution run.
 
 ## Optional managed workflow
 

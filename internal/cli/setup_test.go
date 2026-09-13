@@ -36,7 +36,7 @@ func TestSetupCLI(t *testing.T) {
 		t.Fatal("preview wrote instructions")
 	}
 	run("setup", "--agents", "codex,claude", "--apply", "--json")
-	for _, name := range []string{"conductor-work", "conductor-plan", "conductor-worker", "conductor-orchestrator", "conductor-retrospective", "conductor-workflow-improver"} {
+	for _, name := range []string{"conductor-work", "conductor-onboard", "conductor-plan", "conductor-worker", "conductor-orchestrator", "conductor-retrospective", "conductor-workflow-improver"} {
 		for _, skillRoot := range []string{filepath.Join(root, ".agents", "skills"), filepath.Join(root, "custom claude", "skills")} {
 			if _, err := os.Stat(filepath.Join(skillRoot, name, "SKILL.md")); err != nil {
 				t.Fatalf("missing installed skill %s: %v", name, err)
@@ -51,6 +51,11 @@ func TestSetupCLI(t *testing.T) {
 		t.Fatal("setup initialized tracker")
 	}
 	run("setup", "--remove", "--agents", "codex,claude", "--apply", "--json")
+	for _, skillRoot := range []string{filepath.Join(root, ".agents", "skills"), filepath.Join(root, "custom claude", "skills")} {
+		if _, err := os.Stat(filepath.Join(skillRoot, "conductor-onboard", "SKILL.md")); !os.IsNotExist(err) {
+			t.Fatalf("owned onboarding skill remains: %v", err)
+		}
+	}
 	if _, e = os.Stat(filepath.Join(root, ".agents", "skills", "conductor-work", "SKILL.md")); !os.IsNotExist(e) {
 		t.Fatal("owned skill remains")
 	}

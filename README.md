@@ -10,6 +10,8 @@ Follow the [quickstart](docs/quickstart.md) to build or install the executable a
 
 Setup installs a small user-level instruction and skill, preserving existing settings. It does not register any repositories. Run `conductor init --prefix APP --request onboarding/init/1 --json` in each repository you want to use. Linked worktrees share that registration; a separate clone does not automatically opt in. In other projects the agent performs only a read-only registration check and continues without the Conductor workflow. No hooks or repository instruction files are installed.
 
+For an existing project with docs and plans, ask an agent to use [conductor-onboard](skills/conductor-onboard/SKILL.md). It reconciles current scope and implementation evidence, preserves source documents, and maps remaining work into tickets with a resumable coverage record. `init` only registers the repository. See [existing-project onboarding](docs/quickstart.md#onboard-an-existing-project) for a sample request and workflow boundaries.
+
 ## What the tracer covers
 
 - Stable agent identities, separate sessions, assignment, and transactional claims.
