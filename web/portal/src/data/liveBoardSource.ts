@@ -91,7 +91,11 @@ export function createLiveBoardSource(projectId: string): BoardSource {
         onStatus('connecting');
         const stream = new EventSource(`${base}/events`);
         const opened = () => onStatus('connected');
-        const disconnected = () => onStatus('disconnected');
+        const disconnected = () => {
+          onStatus('disconnected');
+          // Native retry only continues in CONNECTING; HTTP failures can be terminal.
+          if (stream.readyState === EventSource.CLOSED) failed();
+        };
         const failed = () => {
           onStatus('error');
           closeCurrent();

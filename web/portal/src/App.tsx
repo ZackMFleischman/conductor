@@ -26,6 +26,7 @@ export function App({ source, projectControl }: { source: BoardSource; projectCo
     setConnection('connecting');
     setStale(false);
     let transport: ConnectionStatus = 'connecting';
+    let connectionGeneration = 0;
     let running = false;
     let pending = false;
     const refresh = async () => {
@@ -35,14 +36,15 @@ export function App({ source, projectControl }: { source: BoardSource; projectCo
       setRefreshing(true);
       while (pending && !controller.signal.aborted) {
         pending = false;
+        const generation = connectionGeneration;
         try {
           const board = await source.load(controller.signal);
-          if (!controller.signal.aborted && !pending) {
+          if (!controller.signal.aborted && !pending && generation === connectionGeneration) {
             setState({ status: 'ready', board });
             if (transport === 'connected') setStale(false);
           }
         } catch {
-          if (!controller.signal.aborted && !pending) setState(previous => ({ status: 'error', board: previous.board }));
+          if (!controller.signal.aborted && !pending && generation === connectionGeneration) setState(previous => ({ status: 'error', board: previous.board }));
         }
       }
       running = false;
@@ -54,7 +56,10 @@ export function App({ source, projectControl }: { source: BoardSource; projectCo
       unsubscribe = source.subscribe?.(() => { void refresh(); }, status => {
         transport = status;
         setConnection(status);
-        if (status === 'error' || status === 'disconnected') setStale(true);
+        if (status === 'error' || status === 'disconnected') {
+          connectionGeneration++;
+          setStale(true);
+        }
       });
     } catch { setConnection('error'); setStale(true); }
     return () => { controller.abort(); unsubscribe?.(); };

@@ -26,7 +26,7 @@ Open the service's loopback address. Production uses same-origin URLs. For front
 
 The opaque revision is validated but never compared numerically. Every `board.changed` event, including the initial event and reconnect events, requests a snapshot. One request runs at a time; multiple events during that request become one follow-up request, and the superseded result is discarded. Source changes and unmount abort pending loads, remove listeners, close the EventSource, and cancel scheduled reconnects. Project changes reset filters, avoiding invisible filters left over from another project. Refreshes within a project retain filters.
 
-Network disconnects use EventSource reconnection. A `board.error` or malformed invalidation closes that stream and schedules a fresh connection after three seconds. The last successful board remains visible with a stale warning through reconnection until a fresh snapshot succeeds. A failed refresh also preserves the last successful board. “Try again” restarts the load and connection immediately. No server error body or exception details are shown.
+Network disconnects use EventSource reconnection while the stream is reconnecting. A terminal native error (for example an HTTP 503), `board.error`, or malformed invalidation closes that stream and schedules a fresh connection after three seconds. The last successful board remains visible with a stale warning through reconnection until a fresh snapshot succeeds. A failed refresh also preserves the last successful board. “Try again” restarts the load and connection immediately. No server error body or exception details are shown.
 
 ## Validation handoff
 

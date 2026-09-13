@@ -4,10 +4,12 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { LivePortal } from './LivePortal';
 
 class Stream extends EventTarget {
+  static CLOSED = 2;
   static all: Stream[] = [];
+  readyState = 1;
   closed = false;
   constructor(public url: string) { super(); Stream.all.push(this); }
-  close() { this.closed = true; }
+  close() { this.closed = true; this.readyState = Stream.CLOSED; }
   emit(type: string, data = '{"revision":"new"}') { this.dispatchEvent(new MessageEvent(type, { data })); }
 }
 const project = (id: string) => ({ id, name: id, description: '' });
@@ -55,6 +57,23 @@ it('reopens after a server error and cancels scheduled reconnects on unmount', a
   expect(Stream.all).toHaveLength(2);
 });
 
+it('replaces terminal native SSE failures such as a 503 response', async () => {
+  const { unmount } = render(<LivePortal />);
+  await screen.findByText('First');
+  vi.useFakeTimers();
+  await act(async () => { Stream.all[0].readyState = 0; Stream.all[0].emit('error'); });
+  await act(async () => { vi.advanceTimersByTime(6000); });
+  expect(Stream.all).toHaveLength(1);
+  await act(async () => { Stream.all[0].readyState = Stream.CLOSED; Stream.all[0].emit('error'); });
+  expect(screen.getByRole('alert')).toHaveTextContent(/stale/i);
+  await act(async () => { vi.advanceTimersByTime(3000); });
+  expect(Stream.all).toHaveLength(2);
+  await act(async () => { Stream.all[1].readyState = Stream.CLOSED; Stream.all[1].emit('error'); });
+  unmount();
+  await act(async () => { vi.advanceTimersByTime(6000); });
+  expect(Stream.all).toHaveLength(2);
+});
+
 it('coalesces refreshes and never lets an obsolete snapshot overwrite the latest data', async () => {
   render(<LivePortal />);
   await screen.findByText('First');
@@ -69,6 +88,22 @@ it('coalesces refreshes and never lets an obsolete snapshot overwrite the latest
   expect(await screen.findByText('Latest')).toBeInTheDocument();
   expect(screen.queryByText('Obsolete')).not.toBeInTheDocument();
   expect(fetcher.mock.calls.length).toBe(count + 1);
+});
+
+it('does not mark a pre-disconnect request fresh after the connection reopens', async () => {
+  render(<LivePortal />);
+  await screen.findByText('First');
+  let finish!: (response: Response) => void;
+  fetcher.mockImplementationOnce(() => new Promise<Response>(resolve => { finish = resolve; }));
+  await act(async () => { Stream.all[0].emit('open'); Stream.all[0].emit('board.changed'); });
+  await act(async () => { Stream.all[0].readyState = 0; Stream.all[0].emit('error'); Stream.all[0].emit('open'); });
+  await act(async () => { finish(response(snapshot('a', 'Obsolete'))); });
+  expect(screen.getByRole('alert')).toHaveTextContent(/stale/i);
+  expect(screen.queryByText('Obsolete')).not.toBeInTheDocument();
+  fetcher.mockResolvedValue(response(snapshot('a', 'Fresh')));
+  await act(async () => { Stream.all[0].emit('board.changed'); });
+  expect(await screen.findByText('Fresh')).toBeInTheDocument();
+  expect(screen.queryByRole('alert')).not.toBeInTheDocument();
 });
 
 it('aborts old project loads and removes its stream listeners on switch and unmount', async () => {
