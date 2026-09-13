@@ -143,6 +143,41 @@ func TestUpgradePreservesCanonicalLocalAddition(t *testing.T) {
 	}
 }
 
+func TestUpgradeAdoptsOwnershipWhenCurrentAlreadyEqualsCanonical(t *testing.T) {
+	o := fixture(t)
+	o.Agents = []string{"codex"}
+	o.SkillFiles["SKILL.md"] = []byte("base\n")
+	initial, err := Plan(o)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = Apply(initial); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(o.UserHome, ".agents", "skills", "conductor-work", "SKILL.md")
+	next := []byte("base\nreviewed guidance\n")
+	put(t, path, next)
+	o.SkillFiles["SKILL.md"] = next
+	edits, err := Plan(o)
+	if err != nil {
+		t.Fatalf("current canonical bytes should permit ownership upgrade: %v", err)
+	}
+	for _, e := range edits {
+		if e.Path == path {
+			t.Fatalf("ownership upgrade should not rewrite unchanged canonical skill: %#v", e)
+		}
+	}
+	if err = Apply(edits); err != nil {
+		t.Fatal(err)
+	}
+	if got := get(t, path); !bytes.Equal(got, next) {
+		t.Fatalf("ownership upgrade changed canonical skill: %q", got)
+	}
+	if edits, err = Plan(o); err != nil || len(edits) != 0 {
+		t.Fatalf("ownership upgrade not idempotent: %v %#v", err, edits)
+	}
+}
+
 func TestUpgradePreservesCanonicalAdditionsAcrossSkillFiles(t *testing.T) {
 	o := fixture(t)
 	o.Agents = []string{"codex"}

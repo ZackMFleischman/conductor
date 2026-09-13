@@ -91,12 +91,12 @@ func upgradeRecords(m *manifest, o Options, host string) (bool, error) {
 		if i, ok := index[dest]; ok {
 			r := &m.Records[i]
 			preserved := preservedAddition(r.After, current, next) || (r.Previous != nil && preservedAddition(r.Previous, current, r.After))
-			if !bytes.Equal(current, r.After) && !(r.Previous != nil && bytes.Equal(current, r.Previous)) && !(current == nil && r.Before == nil) && !preserved {
+			if !bytes.Equal(current, r.After) && !(r.Previous != nil && bytes.Equal(current, r.Previous)) && !(current == nil && r.Before == nil) && !bytes.Equal(current, next) && !preserved {
 				return false, fmt.Errorf("owned content conflict: %s", dest)
 			}
 			if !bytes.Equal(next, r.After) {
 				// Finish an interrupted earlier upgrade before introducing another version.
-				if current != nil && !bytes.Equal(current, r.After) && !preservedAddition(r.After, current, next) {
+				if current != nil && !bytes.Equal(current, r.After) && !bytes.Equal(current, next) && !preservedAddition(r.After, current, next) {
 					return false, fmt.Errorf("finish previous skill upgrade before upgrading again: %s", dest)
 				}
 				r.Previous = append([]byte(nil), r.After...)
