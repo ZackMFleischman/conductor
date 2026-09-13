@@ -136,6 +136,20 @@ func digest(b []byte) string {
 	return hex.EncodeToString(h[:])
 }
 func read(path string) ([]byte, error) {
+	// Validate every existing ancestor even when the leaf (or intermediate
+	// directories) does not exist yet. Both Plan and Apply use this check.
+	for p := filepath.Dir(path); ; p = filepath.Dir(p) {
+		fi, err := os.Lstat(p)
+		if err != nil && !os.IsNotExist(err) {
+			return nil, err
+		}
+		if err == nil && (fi.Mode()&os.ModeSymlink != 0 || !fi.IsDir()) {
+			return nil, fmt.Errorf("unsupported linked or non-directory parent: %s", p)
+		}
+		if filepath.Dir(p) == p {
+			break
+		}
+	}
 	info, e := os.Lstat(path)
 	if os.IsNotExist(e) {
 		return nil, nil
@@ -148,19 +162,6 @@ func read(path string) ([]byte, error) {
 	}
 	if info.Mode().Perm()&0200 == 0 {
 		return nil, fmt.Errorf("read-only path: %s", path)
-	}
-	// Refuse symlink parents as well: installation destinations must be literal roots.
-	for p := filepath.Dir(path); ; p = filepath.Dir(p) {
-		fi, e := os.Lstat(p)
-		if e != nil {
-			return nil, e
-		}
-		if fi.Mode()&os.ModeSymlink != 0 {
-			return nil, fmt.Errorf("symlink parent: %s", p)
-		}
-		if filepath.Dir(p) == p {
-			break
-		}
 	}
 	return os.ReadFile(path)
 }
