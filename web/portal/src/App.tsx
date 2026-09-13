@@ -181,7 +181,6 @@ export function App({ source, projectControl, projectName }: { source: BoardSour
           <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>{tickets.length === 0 ? 'Tickets will appear here when the source has work to show.' : 'Try another search or clear the filters to see all work.'}</Typography>
         </Paper>}
         <KanbanBoard tickets={filtered} query={term} onGroupFilter={setGroup} updatedTickets={updatedTickets} onOpen={setSelectedKey} />
-        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', flexShrink: 0, mt: 1 }}>Assignment shows ownership, not an active claim. This board does not change ticket state.</Typography>
       </>}
     </Box>
     </Box>
