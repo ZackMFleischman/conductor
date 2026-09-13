@@ -43,6 +43,10 @@ Accessibility snapshots and a visual screenshot were inspected in the browser to
 
 After the isolated checks, the final binary was opened read-only against the existing shared Conductor home. The browser loaded CON with 24 real tickets and offered CON/HOST/INT/READ project selection. Search matched real ticket keys and descriptions. No shared registry migration or installed executable replacement occurred.
 
+## Compact-description follow-up (CON-25)
+
+The user requested shorter cards after inspecting live data. Descriptions now collapse to four lines, with Show more / Show less only when the rendered text overflows. Full text remains in the safe highlighting/search path. Resize observation adapts the control to card width, and the toggle exposes its expanded state and controlled description. Independent code review found no issues; all 41 frontend tests and the production build passed. Browser inspection on the actual CON board at a narrow viewport confirmed truncation, expansion to full text and collapse. The user subsequently authorized merging the feature branch into main. Active-claim visibility is separately tracked in CON-26; assignment remains the current indicator.
+
 ## Run from source
 
 Build the Go executable and `web/portal` production assets, then run:

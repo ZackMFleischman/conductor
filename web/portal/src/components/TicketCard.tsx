@@ -3,6 +3,7 @@ import LockOutlined from '@mui/icons-material/LockOutlined';
 import PersonOutlined from '@mui/icons-material/PersonOutlined';
 import { GroupLabel } from './GroupLabel';
 import { HighlightedText } from './HighlightedText';
+import { TicketDescription } from './TicketDescription';
 import type { BoardTicket, TicketStatus } from '../board';
 
 export const statusMeta: Record<TicketStatus, { label: string; color: string; tint: string }> = {
@@ -22,7 +23,7 @@ export function TicketCard({ ticket, query, onGroupFilter }: { ticket: BoardTick
       <Chip size="small" label={meta.label} sx={{ height: 18, fontSize: '0.66rem', borderRadius: 1, bgcolor: meta.tint, color: meta.color }} />
     </Stack>
     <Typography component="h3" variant="h3" id={`ticket-${ticket.id}`} sx={{ mb: 0.5 }}><HighlightedText text={ticket.title} query={query} /></Typography>
-    <Typography variant="body2" color="text.secondary" sx={{ whiteSpace: 'pre-wrap' }}><HighlightedText text={ticket.description || 'No description provided.'} query={query} /></Typography>
+    <TicketDescription text={ticket.description || 'No description provided.'} query={query} />
     {blockers.length > 0 && <Box sx={{ mt: 0.75, px: 0.75, py: 0.5, bgcolor: '#fff5ed', border: '1px solid #f3decd', borderRadius: 1 }}>
       {blockers.map((blocker, index) => <Box key={index} sx={{ mt: index ? 0.75 : 0 }}>
         <Stack direction="row" sx={{ alignItems: 'baseline', flexWrap: 'wrap', columnGap: 0.5, color: '#8d4522' }}>

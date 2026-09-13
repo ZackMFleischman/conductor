@@ -19,3 +19,5 @@
 | T14 · CON-19 · Parent hierarchy contract | Done | backend-api-1 | Define complete parent ancestry and consistent live snapshots so the portal can filter whole ticket subtrees correctly. | — |
 | T15 · CON-21 · Database snapshots | Done; independently accepted | backend-read-model-1 | Read tickets, assignments, dependencies and parents together so the board never mixes different database states. | — |
 | T16 · CON-22 · Live portal connection | Done; independently accepted | portal-live-adapter-1 | Connect the board to real projects, refresh when tickets change, and recover safely from connection failures. | — |
+| T17 · CON-25 · Compact descriptions | Validated; reviewed | backend-api-1 | Keep long descriptions to four lines and let the viewer expand each card to read the full text. | — |
+| T18 · CON-26 · Active claim visibility | Ready | Unassigned | Show whether a ticket has an active claim separately from its assigned agent. | Future API and frontend increment |
