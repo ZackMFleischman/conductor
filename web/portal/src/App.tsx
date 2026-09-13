@@ -29,10 +29,18 @@ export function App({ source, projectControl, projectName }: { source: BoardSour
   const [activityOpen, setActivityOpen] = useState(false);
   const desktopDrawer = useMediaQuery(theme.breakpoints.up('sm'), { defaultMatches: true });
   const activityToggle = useRef<HTMLButtonElement>(null);
-  const closeActivity = () => { setActivityOpen(false); activityToggle.current?.focus(); };
+  const activityWasOpen = useRef(false);
+  const closeActivity = () => setActivityOpen(false);
+  useEffect(() => {
+    if (activityWasOpen.current && !activityOpen) activityToggle.current?.focus();
+    activityWasOpen.current = activityOpen;
+  }, [activityOpen]);
   const [activity, setActivity] = useState<ActivityEntry[]>([]);
+  const [archivedActivity, setArchivedActivity] = useState<ReadonlySet<string>>(new Set());
+  const [showArchived, setShowArchived] = useState(false);
+  const activeActivity = activity.filter(entry => !archivedActivity.has(entry.id));
   const lastSnapshot = useRef<{ source: BoardSource; tickets: BoardTicket[] } | null>(null);
-  useEffect(() => { setSelectedKey(null); setActivity([]); }, [source]);
+  useEffect(() => { setSelectedKey(null); setActivity([]); setArchivedActivity(new Set()); setShowArchived(false); }, [source]);
   useEffect(() => {
     const controller = new AbortController();
     setState({ status: 'loading' });
@@ -144,7 +152,7 @@ export function App({ source, projectControl, projectName }: { source: BoardSour
           <Typography sx={{ color: '#c6cdd6', pl: 1, display: { xs: 'none', sm: 'block' } }}>/</Typography>
           <Typography variant="body2" color="text.secondary" sx={{ display: { xs: 'none', sm: 'block' } }}>{displayedProjectName ?? 'Conductor'}</Typography>
         </Stack>
-        <Button ref={activityToggle} size="small" aria-controls="activity-drawer" aria-expanded={activityOpen} onClick={() => setActivityOpen(value => !value)}>Activity{activity.length ? ` (${activity.length})` : ''}</Button>
+        <Button ref={activityToggle} size="small" aria-controls="activity-drawer" aria-expanded={activityOpen} onClick={() => setActivityOpen(true)} sx={{ visibility: activityOpen ? 'hidden' : 'visible' }}>Activity{activeActivity.length ? ` (${activeActivity.length})` : ''}</Button>
       </Stack>
     </Box>
     <Box component="main" sx={{ flex: 1, minHeight: 0, minWidth: 0, width: '100%', display: 'flex', flexDirection: 'column', maxWidth: 1800, mx: 'auto', px: { xs: 2, md: 3 }, pt: 2, pb: 2 }}>
@@ -184,7 +192,7 @@ export function App({ source, projectControl, projectName }: { source: BoardSour
       </>}
     </Box>
     </Box>
-    <ActivityFeed entries={activity} open={activityOpen} desktop={desktopDrawer} onClose={closeActivity} />
-    <TicketDetails ticket={tickets.find(t => t.key === selectedKey)} selectedKey={selectedKey} onClose={() => setSelectedKey(null)} />
+    <ActivityFeed entries={showArchived ? activity : activeActivity} open={activityOpen} desktop={desktopDrawer} onClose={closeActivity} archived={archivedActivity} showArchived={showArchived} archivedCount={activity.length - activeActivity.length} canArchive={activeActivity.length > 0} onArchive={() => { setArchivedActivity(new Set(activity.map(entry => entry.id))); setShowArchived(false); }} onToggleArchived={() => setShowArchived(value => !value)} />
+    <TicketDetails tickets={tickets} ticket={tickets.find(t => t.key === selectedKey)} selectedKey={selectedKey} onClose={() => setSelectedKey(null)} />
   </TicketLinksContext.Provider></ThemeProvider>;
 }

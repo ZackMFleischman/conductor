@@ -15,6 +15,7 @@ var (
 )
 
 type Project struct {
+	root        string
 	ID          string `json:"id"`
 	Name        string `json:"name"`
 	Description string `json:"description"`
@@ -33,20 +34,21 @@ type Blocker struct {
 	TicketKey string `json:"ticketKey,omitempty"`
 }
 type Ticket struct {
-	ID          string      `json:"id"`
-	Key         string      `json:"key"`
-	Title       string      `json:"title"`
-	Description string      `json:"description"`
-	Kind        string      `json:"kind"`
-	Summary     string      `json:"summary"`
-	Evidence    string      `json:"evidence"`
-	QA          string      `json:"qa"`
-	CreatedAt   string      `json:"createdAt"`
-	UpdatedAt   string      `json:"updatedAt"`
-	Status      string      `json:"status"`
-	Assignee    *Assignee   `json:"assignee"`
-	Ancestors   []Reference `json:"ancestors"`
-	Blockers    []Blocker   `json:"blockers"`
+	Attachments []Attachment `json:"attachments"`
+	ID          string       `json:"id"`
+	Key         string       `json:"key"`
+	Title       string       `json:"title"`
+	Description string       `json:"description"`
+	Kind        string       `json:"kind"`
+	Summary     string       `json:"summary"`
+	Evidence    string       `json:"evidence"`
+	QA          string       `json:"qa"`
+	CreatedAt   string       `json:"createdAt"`
+	UpdatedAt   string       `json:"updatedAt"`
+	Status      string       `json:"status"`
+	Assignee    *Assignee    `json:"assignee"`
+	Ancestors   []Reference  `json:"ancestors"`
+	Blockers    []Blocker    `json:"blockers"`
 }
 type Board struct {
 	Project  Project  `json:"project"`

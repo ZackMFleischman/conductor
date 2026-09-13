@@ -16,7 +16,7 @@ export function ticketChanges(previous: readonly BoardTicket[], next: readonly B
       if (old.title !== ticket.title) changes.push(`Title: ${old.title} → ${ticket.title}`);
       if (JSON.stringify(old.assignee) !== JSON.stringify(ticket.assignee)) changes.push(`Assignee: ${old.assignee?.name ?? 'Unassigned'} → ${ticket.assignee?.name ?? 'Unassigned'}`);
       if (old.kind !== ticket.kind) changes.push(`Type: ${old.kind ?? 'implementation'} → ${ticket.kind ?? 'implementation'}`);
-      for (const [field, label] of [['description', 'Description'], ['summary', 'Summary'], ['evidence', 'Evidence'], ['qa', 'QA notes'], ['blockers', 'Blockers'], ['ancestors', 'Parents']] as const) {
+      for (const [field, label] of [['description', 'Description'], ['summary', 'Summary'], ['evidence', 'Evidence'], ['qa', 'QA notes'], ['blockers', 'Blockers'], ['ancestors', 'Parents'], ['attachments', 'Attachments']] as const) {
         if (JSON.stringify(old[field]) !== JSON.stringify(ticket[field])) changes.push(`${label} updated`);
       }
       if (!changes.length && old.updatedAt !== ticket.updatedAt) changes.push('Ticket updated');

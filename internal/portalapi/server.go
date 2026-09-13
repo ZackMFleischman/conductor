@@ -45,6 +45,7 @@ func NewHandler(reader Reader, options Options) http.Handler {
 	mux.HandleFunc("GET /api/v1/projects", s.projects)
 	mux.HandleFunc("GET /api/v1/projects/{project}/board", s.board)
 	mux.HandleFunc("GET /api/v1/projects/{project}/events", s.events)
+	mux.HandleFunc("GET /api/v1/projects/{project}/tickets/{ticket}/attachments/{attachment}", s.attachment)
 	mux.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) { apiError(w, 404, "NOT_FOUND", "Resource not found") })
 	if options.Assets != nil {
 		mux.Handle("/", http.FileServerFS(options.Assets))

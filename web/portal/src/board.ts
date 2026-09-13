@@ -3,7 +3,9 @@ export type TicketStatus = (typeof statuses)[number];
 export interface Assignee { id: string; name: string }
 export interface Blocker { reason: string; ticketKey?: string }
 export interface TicketReference { id: string; key: string; title: string }
+export interface Attachment { id: string; name: string; url: string; mediaType: string; size: number; modifiedAt?: string }
 export interface BoardTicket {
+  attachments?: Attachment[];
   id: string;
   key: string;
   title: string;

@@ -38,6 +38,11 @@ export function decodeBoard(value: unknown, projectId: string): LiveSnapshot {
     const owner = t.assignee === null ? null : object(t.assignee);
     return {
       ...reference(t), description: text(t.description), status: t.status as BoardTicket['status'],
+      attachments: t.attachments == null ? [] : array(t.attachments).map(value => {
+        const a = object(value);
+        if (typeof a.size !== 'number' || !Number.isSafeInteger(a.size) || a.size < 0) throw invalid();
+        return { id: text(a.id, true), name: text(a.name, true), url: text(a.url, true), mediaType: text(a.mediaType, true), size: a.size, ...(a.modifiedAt === undefined ? {} : { modifiedAt: text(a.modifiedAt) }) };
+      }),
       ...Object.fromEntries(['kind', 'summary', 'evidence', 'qa', 'createdAt', 'updatedAt'].filter(key => t[key] !== undefined).map(key => [key, text(t[key])])),
       assignee: owner === null ? null : { id: text(owner.id, true), name: text(owner.name, true) },
       blockers: array(t.blockers).map(value => {

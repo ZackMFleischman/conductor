@@ -5,7 +5,7 @@ import remarkGfm from 'remark-gfm';
 import { highlightMarkdown } from './highlightMarkdown';
 import { linkTicketReferences, TicketLinksContext } from './TicketLinks';
 
-export const TicketDescription = memo(function TicketDescription({ text, query, full = false }: { text: string; query: string; full?: boolean }) {
+export const TicketDescription = memo(function TicketDescription({ text, query, full = false, hideImages = false }: { text: string; query: string; full?: boolean; hideImages?: boolean }) {
   const { keys, open } = useContext(TicketLinksContext);
   const id = useId();
   const element = useRef<HTMLDivElement>(null);
@@ -50,6 +50,7 @@ export const TicketDescription = memo(function TicketDescription({ text, query, 
         '& input[type="checkbox"]': { mr: 0.5 },
       }}>
         <Markdown remarkPlugins={[remarkGfm]} remarkRehypeOptions={{ clobberPrefix: `${id}-` }} rehypePlugins={[[linkTicketReferences, { keys }], [highlightMarkdown, { query }]]} components={{
+          ...(hideImages ? { img: () => null } : {}),
           a: ({ node: _node, ...props }) => <a {...props} onClick={event => {
             event.stopPropagation();
             const key = props.href?.startsWith('#ticket=') ? props.href.slice(8) : props.href?.startsWith('#') ? props.href.slice(1) : '';

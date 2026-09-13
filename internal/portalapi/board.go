@@ -8,7 +8,9 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/ZackMFleischman/conductor/internal/store"
+	"path/filepath"
 	"sort"
+	"strings"
 )
 
 // DBReader reads portal snapshots from an existing current-schema registry.
@@ -79,12 +81,18 @@ func (r DBReader) Board(ctx context.Context, projectID string) (Board, error) {
 	}
 	defer tx.Rollback()
 	b := Board{Tickets: make([]Ticket, 0)}
-	err = tx.QueryRowContext(ctx, `SELECT id,prefix FROM projects WHERE id=?`, projectID).Scan(&b.Project.ID, &b.Project.Name)
+	var commonDir string
+	err = tx.QueryRowContext(ctx, `SELECT id,prefix,common_dir FROM projects WHERE id=?`, projectID).Scan(&b.Project.ID, &b.Project.Name, &commonDir)
 	if errors.Is(err, sql.ErrNoRows) {
 		return Board{}, ErrNotFound
 	}
 	if err != nil {
 		return Board{}, err
+	}
+	// A standard registered repository has a .git common directory. Never
+	// guess a serving root for bare repositories or unavailable registrations.
+	if filepath.IsAbs(commonDir) && strings.EqualFold(filepath.Base(commonDir), ".git") {
+		b.Project.root = filepath.Dir(commonDir)
 	}
 	tickets, order, err := readBoardTickets(ctx, tx, projectID)
 	if err != nil {
@@ -131,6 +139,7 @@ func (r DBReader) Board(ctx context.Context, projectID string) (Board, error) {
 			}
 			return a.Reason < b.Reason
 		})
+		stored.ticket.Attachments = localAttachments(b.Project.root, projectID, stored.ticket)
 		b.Tickets = append(b.Tickets, stored.ticket)
 	}
 	// Revision is derived only from durable observations, never a read timestamp.
