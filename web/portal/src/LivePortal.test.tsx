@@ -43,6 +43,7 @@ it.each([
   const { unmount } = render(<LivePortal />);
   expect(await screen.findByRole('alert')).toHaveTextContent(/choose a registered project/i);
   expect((screen.getByRole('option', { name: label }) as HTMLOptionElement).selected).toBe(true);
+  expect(screen.queryByText('No projects registered')).not.toBeInTheDocument();
   expect(fetcher.mock.calls.filter(([requestUrl]) => requestUrl !== '/api/v1/projects')).toHaveLength(0);
   expect(Stream.all).toHaveLength(0);
   unmount();

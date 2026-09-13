@@ -74,6 +74,6 @@ export function LivePortal() {
     <Typography variant="caption">Live data · Read only</Typography>
     {invalidSelection && <Box sx={{ mt: 2 }}>{projectControl}<Alert severity="warning" sx={{ mt: 2 }}>That project is unavailable. Choose a registered project.</Alert></Box>}
     {error ? <Alert severity="error" action={<Button color="inherit" onClick={() => setAttempt(a => a + 1)}>Try again</Button>}>Could not load projects. Please try again.</Alert>
-      : <Typography role="status" sx={{ mt: 2 }}>{projects ? 'No projects registered' : 'Loading projects…'}</Typography>}
+      : !invalidSelection && <Typography role="status" sx={{ mt: 2 }}>{projects ? 'No projects registered' : 'Loading projects…'}</Typography>}
   </Box></ThemeProvider>;
 }
