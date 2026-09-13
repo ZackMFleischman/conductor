@@ -36,6 +36,27 @@ func skillDestination(key string, o Options, host string) (string, error) {
 	return filepath.Join(root, filepath.FromSlash(key)), nil
 }
 
+// preservedAddition accepts only line additions that the next canonical file
+// already contains in the same order. Replacements and deletions remain owned
+// content conflicts, so a preview cannot silently overwrite a local edit.
+func preservedAddition(base, current, next []byte) bool {
+	if bytes.Equal(base, current) || bytes.Equal(current, next) {
+		return false
+	}
+	return lineSubsequence(bytes.SplitAfter(base, []byte("\n")), bytes.SplitAfter(current, []byte("\n"))) &&
+		lineSubsequence(bytes.SplitAfter(current, []byte("\n")), bytes.SplitAfter(next, []byte("\n")))
+}
+
+func lineSubsequence(need, have [][]byte) bool {
+	index := 0
+	for _, line := range have {
+		if index < len(need) && bytes.Equal(need[index], line) {
+			index++
+		}
+	}
+	return index == len(need)
+}
+
 // Persist both known old and desired bytes before changing any installed file.
 // The original Before remains intact so uninstall never restores an old skill.
 func upgradeRecords(m *manifest, o Options, host string) (bool, error) {
@@ -69,12 +90,13 @@ func upgradeRecords(m *manifest, o Options, host string) (bool, error) {
 		next := o.SkillFiles[key]
 		if i, ok := index[dest]; ok {
 			r := &m.Records[i]
-			if !bytes.Equal(current, r.After) && !(r.Previous != nil && bytes.Equal(current, r.Previous)) && !(current == nil && r.Before == nil) {
+			preserved := preservedAddition(r.After, current, next) || (r.Previous != nil && preservedAddition(r.Previous, current, r.After))
+			if !bytes.Equal(current, r.After) && !(r.Previous != nil && bytes.Equal(current, r.Previous)) && !(current == nil && r.Before == nil) && !preserved {
 				return false, fmt.Errorf("owned content conflict: %s", dest)
 			}
 			if !bytes.Equal(next, r.After) {
 				// Finish an interrupted earlier upgrade before introducing another version.
-				if current != nil && !bytes.Equal(current, r.After) {
+				if current != nil && !bytes.Equal(current, r.After) && !preservedAddition(r.After, current, next) {
 					return false, fmt.Errorf("finish previous skill upgrade before upgrading again: %s", dest)
 				}
 				r.Previous = append([]byte(nil), r.After...)

@@ -302,10 +302,15 @@ func Plan(o Options) ([]Edit, error) {
 				return nil, e
 			}
 			var a []byte
+			preserved := false
 			switch r.Kind {
 			case "file":
 				if !bytes.Equal(b, r.After) && !(r.Previous != nil && bytes.Equal(b, r.Previous)) && !(bytes.Equal(b, r.Before) && (b == nil) == (r.Before == nil)) {
-					return nil, fmt.Errorf("owned content conflict: %s", r.Path)
+					if !o.Remove && r.Previous != nil && preservedAddition(r.Previous, b, r.After) {
+						preserved = true
+					} else {
+						return nil, fmt.Errorf("owned content conflict: %s", r.Path)
+					}
 				}
 				if o.Remove {
 					a = r.Before
@@ -388,7 +393,11 @@ func Plan(o Options) ([]Edit, error) {
 				a = nil
 			}
 			if digest(b) != digest(a) {
-				edits = append(edits, edit(r.Path, b, a, r.Hash))
+				next := edit(r.Path, b, a, r.Hash)
+				if preserved {
+					next.Description = "Safely merge preserved Conductor skill guidance"
+				}
+				edits = append(edits, next)
 			}
 		}
 		if o.Remove {
