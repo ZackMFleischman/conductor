@@ -33,3 +33,11 @@ Second user feedback removed the redundant fixture explanation and result-count 
 Default ticket cards now use 12px body text, roughly 13px titles, tighter padding and smaller ownership/status rows. Descriptions remain complete. The fixture set has 12 tickets, including four Ready and three each in In progress and Blocked, to make density visible.
 
 Search highlights all non-overlapping literal matches in ticket keys, titles, descriptions, assignees, blocker keys and reasons. Filtering and highlighting use the same case-insensitive Unicode regex with escaped query text and trimmed outside whitespace. Matches never span unrelated fields. Original text stays intact as React text; no HTML is interpreted. Clearing search removes highlights. These changes remain fixture-only and leave the API proposal unchanged.
+
+## Parent context and compact blockers (CON-18)
+
+The compact Parent selector uses All parents and No parent, avoiding the earlier mixed epic/parent wording. Selecting a parent includes that ticket if present and its entire subtree, at every depth. The frontend-owned model carries a complete nearest-parent-to-root ancestor chain, so missing intermediate board rows do not break filtering. Parent, search and assignment filters compose.
+
+Card footers show a muted, ellipsized root title beside the assignee. Hover or keyboard focus exposes the complete parent path with keys and full titles. Clicking the label applies that root filter. CON-19 proposes the ancestry contract addition to CON-4/CON-13; the updated contract supersedes the original two-reference proposal.
+
+User blocker-density feedback is addressed by placing Blocked by and the related ticket key on the same flex row, followed immediately by the complete reason. Padding and text are smaller; multiple blockers remain separately labeled, with natural wrapping for long keys.

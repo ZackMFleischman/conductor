@@ -16,6 +16,7 @@ export function App({ source }: { source: BoardSource }) {
   const [attempt, setAttempt] = useState(0);
   const [query, setQuery] = useState('');
   const [assignee, setAssignee] = useState('all');
+  const [group, setGroup] = useState('all');
   useEffect(() => {
     const controller = new AbortController();
     setState({ status: 'loading' });
@@ -36,12 +37,14 @@ export function App({ source }: { source: BoardSource }) {
   const term = query.trim();
   const filtered = tickets.filter(ticket => {
     const matchesOwner = assignee === 'all' || (assignee === 'unassigned' ? ticket.assignee === null : ticket.assignee !== null && 'owner:' + ticket.assignee.id === assignee);
+    const matchesGroup = group === 'all' || (group === 'ungrouped' ? ticket.ancestors.length === 0 : 'ref:' + ticket.id === group || ticket.ancestors.some(ref => 'ref:' + ref.id === group));
     const searchable = [ticket.key, ticket.title, ticket.description, ticket.assignee?.name ?? 'Unassigned', ...ticket.blockers.flatMap(b => [b.reason, b.ticketKey ?? ''])];
-    return matchesOwner && (!term || searchable.some(text => findSearchMatches(text, term).length > 0));
+    return matchesOwner && matchesGroup && (!term || searchable.some(text => findSearchMatches(text, term).length > 0));
   });
   const owners = Array.from(new Map(tickets.flatMap(t => t.assignee ? [[t.assignee.id, t.assignee] as const] : [])).values()).sort((a, b) => a.name.localeCompare(b.name));
-  const hasFilters = Boolean(query || assignee !== 'all');
-  const clearFilters = () => { setQuery(''); setAssignee('all'); };
+  const parents = Array.from(new Map(tickets.flatMap(t => t.ancestors.map(ref => [ref.id, ref] as const))).values()).sort((a, b) => a.title.localeCompare(b.title));
+  const hasFilters = Boolean(query || assignee !== 'all' || group !== 'all');
+  const clearFilters = () => { setQuery(''); setAssignee('all'); setGroup('all'); };
 
   return <ThemeProvider theme={theme}><CssBaseline />
     <Box component="header" sx={{ bgcolor: '#fff', borderBottom: '1px solid', borderColor: 'divider', px: { xs: 2, md: 3 }, py: 1 }}>
@@ -74,13 +77,19 @@ export function App({ source }: { source: BoardSource }) {
               {owners.map(owner => <option key={owner.id} value={'owner:' + owner.id}>{owner.name}</option>)}
             </NativeSelect>
           </FormControl>
+          <FormControl variant="standard" sx={{ minWidth: 170, maxWidth: '100%', height: 32, px: 1, justifyContent: 'center', bgcolor: '#fff', border: '1px solid #c4cbd3', borderRadius: 1 }}>
+            <NativeSelect value={group} onChange={e => setGroup(e.target.value)} disableUnderline inputProps={{ 'aria-label': 'Parent' }} sx={{ fontSize: '0.8rem', '& select': { py: 0.5, maxWidth: 250, textOverflow: 'ellipsis' } }}>
+              <option value="all">All parents</option><option value="ungrouped">No parent</option>
+              {parents.map(ref => <option key={ref.id} value={'ref:' + ref.id}>{ref.key} · {ref.title}</option>)}
+            </NativeSelect>
+          </FormControl>
           {hasFilters && <Button onClick={clearFilters} size="small">Clear filters</Button>}
         </Stack>
         {filtered.length === 0 && <Paper variant="outlined" sx={{ p: 3, textAlign: 'center', mb: 2 }}>
           <Typography component="h2" variant="h3">{tickets.length === 0 ? 'No tickets yet' : 'No tickets match these filters'}</Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>{tickets.length === 0 ? 'Tickets will appear here when the source has work to show.' : 'Try another search or clear the filters to see all work.'}</Typography>
         </Paper>}
-        <KanbanBoard tickets={filtered} query={term} />
+        <KanbanBoard tickets={filtered} query={term} onGroupFilter={setGroup} />
         <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>Assignment shows ownership, not an active claim. This board does not change ticket state.</Typography>
       </>}
     </Box>

@@ -6,7 +6,7 @@ import type { BoardSnapshot, BoardSource } from './board';
 
 const snapshot: BoardSnapshot = {
   project: { id: 'test', name: 'Conductor', description: '' },
-  tickets: [{ id: 'one', key: 'DEMO-[a+b]', title: 'Review [a+b]', description: 'Plan [a+b] and [A+B], not ab.', status: 'blocked', assignee: { id: 'owner', name: '[a+b]-agent' }, blockers: [{ reason: 'Wait for [a+b]', ticketKey: 'REF-[a+b]' }] }],
+  tickets: [{ id: 'one', ancestors: [], key: 'DEMO-[a+b]', title: 'Review [a+b]', description: 'Plan [a+b] and [A+B], not ab.', status: 'blocked', assignee: { id: 'owner', name: '[a+b]-agent' }, blockers: [{ reason: 'Wait for [a+b]', ticketKey: 'REF-[a+b]' }] }],
 };
 const source: BoardSource = { kind: 'fixture', load: async () => structuredClone(snapshot) };
 

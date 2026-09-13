@@ -2,7 +2,7 @@ import { Box, Chip, Stack, Typography } from '@mui/material';
 import { statuses, type BoardTicket } from '../board';
 import { statusMeta, TicketCard } from './TicketCard';
 
-export function KanbanBoard({ tickets, query }: { tickets: BoardTicket[]; query: string }) {
+export function KanbanBoard({ tickets, query, onGroupFilter }: { tickets: BoardTicket[]; query: string; onGroupFilter: (value: string) => void }) {
   return <Box sx={{ overflowX: 'auto', pb: 2 }} tabIndex={0} role="group" aria-label="Ticket lanes; scroll horizontally on smaller desktop screens">
     <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'minmax(0, 1fr)', sm: 'repeat(5, minmax(244px, 1fr))' }, gap: 1, alignItems: 'start' }}>
       {statuses.map(status => {
@@ -15,7 +15,7 @@ export function KanbanBoard({ tickets, query }: { tickets: BoardTicket[]; query:
             <Chip size="small" label={laneTickets.length} aria-label={`${laneTickets.length} ${laneTickets.length === 1 ? 'ticket' : 'tickets'}`} sx={{ height: 22, bgcolor: '#fff', fontSize: '0.72rem', color: 'text.secondary' }} />
           </Stack>
           <Stack spacing={0.75}>
-            {laneTickets.map(ticket => <TicketCard key={ticket.id} ticket={ticket} query={query} />)}
+            {laneTickets.map(ticket => <TicketCard key={ticket.id} ticket={ticket} query={query} onGroupFilter={onGroupFilter} />)}
             {!laneTickets.length && <Box sx={{ border: '1px dashed #cdd4de', borderRadius: 1.5, p: 3, textAlign: 'center' }}><Typography variant="body2" color="text.secondary">No tickets</Typography></Box>}
           </Stack>
         </Box>;

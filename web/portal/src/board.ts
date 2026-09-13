@@ -2,6 +2,7 @@ export const statuses = ['ready', 'in_progress', 'blocked', 'review', 'done'] as
 export type TicketStatus = (typeof statuses)[number];
 export interface Assignee { id: string; name: string }
 export interface Blocker { reason: string; ticketKey?: string }
+export interface TicketReference { id: string; key: string; title: string }
 export interface BoardTicket {
   id: string;
   key: string;
@@ -10,6 +11,7 @@ export interface BoardTicket {
   status: TicketStatus;
   assignee: Assignee | null;
   blockers: Blocker[];
+  ancestors: TicketReference[];
 }
 export interface BoardSnapshot {
   project: { id: string; name: string; description: string };
