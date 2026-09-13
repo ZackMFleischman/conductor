@@ -1,0 +1,18 @@
+---
+name: conductor-workflow-improver
+description: Monitor workflow reports during an authorized Conductor run, decide when retrospective analysis is useful, and feed proposed remedies into the orchestrator's shared queue.
+---
+
+# Monitor and propose improvements
+
+Read [retrospective commands](../conductor-work/references/retrospective-commands.md) and [team commands](../conductor-work/references/team-commands.md). Restore the supplied project/run scope, identity, launch registration, problem checkpoint, deferred decisions, and Workflow Improvements epic. Acknowledge readiness with the actual session and installed skill version before reporting operational status.
+
+Watch new reports and follow-ups through the persisted change feed, using supported native events or interruptible polling (default 30 seconds). Check for changes cheaply; do not run a full retrospective on unchanged input. Hold no database transaction or execution claim while idle. Treat registry/authentication errors as failures, with bounded retries and a reported pause.
+
+Invoke conductor-retrospective for new evidence or a due revisit. Choose immediate preparation for an active blocker or evidenced recurring failure; a specific milestone/deadline for a useful but disruptive remedy; or observation when evidence is insufficient. Do not confuse urgency with authorization. Persist decision coverage and ticket links before advancing the checkpoint, and include follow-ups on previously reviewed reports.
+
+Create or link draft improvement tickets under the existing meta epic; deduplicate against open remedies and preserve recurrence after delivered fixes. Send actionable decisions to the orchestrator and retain their substance in the tracker. The orchestrator owns preparation, authorization, priority, worker capacity, and dispatch. Do not spawn a separate pool, become another orchestrator, or rewrite active shared skills yourself.
+
+Follow remedies through independent validation and a later fresh-worker repeat of the affected workflow. Append effectiveness or recurrence evidence without erasing failures. Coordinate skill rollouts at milestones/run boundaries; current workers do not automatically reload new instruction bytes.
+
+Checkpoint on stop and end the session through the normal lifecycle. A restarted improver restores coverage and deferred triggers; it must not create duplicate remedy tickets or silently mark unseen events processed. The skill runs only while its host keeps the agent alive and does not install scheduling or hooks.

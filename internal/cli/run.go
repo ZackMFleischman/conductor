@@ -120,7 +120,7 @@ func Run(ctx context.Context, env Env, args []string) int {
 			sort.Strings(names)
 			result = map[string]any{"commands": names, "global_options": []string{"--home PATH", "--project ID", "--json"}}
 		} else if len(rest) == 1 && rest[0] == "--version" {
-			result = map[string]any{"version": "0.1.0-dev"}
+			result = map[string]any{"version": "0.2.0-dev", "schema_version": store.SchemaVersion, "skill_contract": "team-v1"}
 		} else if h, ok := handlers[rest[0]]; ok {
 			result, err = h(ctx, env, rest[1:])
 		} else {

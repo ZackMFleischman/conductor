@@ -390,6 +390,11 @@ func launchTeamTx(ctx context.Context, c *sql.Conn, p string, r TeamRun, in Team
 		if state != "ready" || (assigned.Valid && assigned.String != in.AgentID) {
 			return Fail("TICKET_INELIGIBLE", "ticket must be ready and assigned to this identity or unassigned")
 		}
+		if in.Role == "worker" {
+			if e := CheckWorkflowEligibilityTx(ctx, c, p, in.TicketID); e != nil {
+				return e
+			}
+		}
 		ticket = in.TicketID
 	}
 	_, e := c.ExecContext(ctx, "INSERT INTO team_launches(id,project_id,run_id,role,agent_id,ticket_id,host_state,created_at) VALUES(?,?,?,?,?,?,'starting',?)", UUID(), p, r.ID, in.Role, in.AgentID, ticket, Now())

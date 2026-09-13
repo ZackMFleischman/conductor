@@ -1,6 +1,6 @@
-# Conductor tracer quickstart
+# Conductor CLI quickstart
 
-This release is a local CLI and one work skill. Git is required for repository/worktree discovery. The React/MUI portal, autonomous worker/orchestrator loops, and hooks are not included. Windows amd64 is the initial runtime target; Linux CLI usage remains provisional until runtime acceptance there.
+This release is a local CLI with work, planning, single-job worker, orchestrator, retrospective, and workflow-improver skills. Git is required for repository/worktree discovery. The team skills use native host agent tools; there is no process launcher, daemon, hook, or React/MUI portal. Windows amd64 is the initial runtime target; Linux CLI usage remains provisional until runtime acceptance there.
 
 ## Install and inspect setup
 
@@ -19,7 +19,7 @@ Setup previews by default; its JSON edits include paths, prior hashes, actions, 
 
 The default Windows data directory is `%LOCALAPPDATA%\Conductor`, containing `conductor.db`. An explicit `--home 'C:\shared data\Conductor'` overrides `CONDUCTOR_HOME`, which overrides the platform default. Use the same home for setup, doctor, and all tracker commands. It is never inferred from the working directory.
 
-Codex uses the actual `CODEX_HOME` (normally `~/.codex`) for global instructions/configuration. Setup selects a nonempty existing `AGENTS.override.md`; otherwise it uses `AGENTS.md` without creating a precedence override. Its personal skill is copied to `~/.agents/skills/conductor-work`. Claude uses `CLAUDE_CONFIG_DIR` (normally `~/.claude`) for `CLAUDE.md`, `settings.json`, and `skills/conductor-work`. Existing instructions, hooks, and unrelated settings are preserved. Setup merges only the exact Conductor data directory into compatible Codex `sandbox_workspace_write.writable_roots` and Claude `permissions.additionalDirectories`; the Windows exception below avoids disrupting unrelated projects.
+Codex uses the actual `CODEX_HOME` (normally `~/.codex`) for global instructions/configuration. Setup selects a nonempty existing `AGENTS.override.md`; otherwise it uses `AGENTS.md` without creating a precedence override. Its six Conductor skills are copied under `~/.agents/skills/`. Claude uses `CLAUDE_CONFIG_DIR` (normally `~/.claude`) for `CLAUDE.md`, `settings.json`, and its `skills/` directory. Existing instructions, hooks, and unrelated settings are preserved. Setup merges only the exact Conductor data directory into compatible Codex `sandbox_workspace_write.writable_roots` and Claude `permissions.additionalDirectories`; the Windows exception below avoids disrupting unrelated projects.
 
 Start fresh host sessions after applying. Configuration is not proof of access: run `doctor --probe-write --json` inside each selected host, then confirm the read-only context bootstrap and native skill discovery. Inspect individual probe outcomes separately from configured paths. A managed sandbox may still deny database/WAL/sidecar access; report that limitation. Do not disable sandboxing or create a fallback registry. The host versions targeted for acceptance are Codex CLI 0.154.0 and Claude Code 2.1.217; synthetic setup tests alone do not establish host acceptance.
 
@@ -77,7 +77,7 @@ Prepare `summary.md` with changed scope and exact criteria completed; `evidence.
 & $Conductor ticket submit APP-1 --session SESSION_UUID --claim CLAIM_UUID --expect-revision CURRENT_REVISION --summary-file '.\summary.md' --evidence-file '.\evidence.md' --qa-file '.\qa.md' --request 'work/submit/1' --json
 ```
 
-Submission releases ownership and enters review. Every ticket needs explicit human QA. The worker must not issue `--human` to approve itself. After a human tests the result, rejection returns it to ready:
+Submission releases ownership and enters review. The examples in this section use legacy human-QA tickets. Prepared-work projects can instead select independent-agent or automated validation; see [workflow commands](reference/workflow-commands.md). The worker must not issue `--human` to impersonate human acceptance. After a human tests the result, rejection returns it to ready:
 
 ```powershell
 & $Conductor ticket reject APP-1 --human --expect-revision CURRENT_REVISION --reason 'Observed QA failure and reproduction' --request 'human/reject/1' --json
@@ -102,14 +102,14 @@ Quiet sessions never expire automatically. A stopped session cannot resume; star
 
 ## Upgrade or remove integration
 
-To upgrade the bundled skill, remove the existing owned integration and install it again from the new executable at the same stable path. In this tracer, repeating setup repairs the recorded installation; it does not automatically replace that installation with a newer bundled skill. Preview both operations and resolve any ownership conflicts before proceeding. Tracker data is retained.
+Replace the executable at its stable installed path, then rerun setup. Setup upgrades unchanged owned skill files in place and adds newly bundled skills. It journals the old and new bytes before changing files so interrupted upgrades can be repaired. User-edited files remain conflicts, not silent overwrites. Preview before applying and start fresh host sessions afterward:
 
 ```powershell
-& $Conductor setup --remove --agents codex,claude --json
-& $Conductor setup --remove --agents codex,claude --apply --json
 & $Conductor setup --agents codex,claude --json
 & $Conductor setup --agents codex,claude --apply --json
 ```
+
+Version 0.2 adds database schema 2. Stop old clients before the first write with the new executable. That write creates a consistent `conductor.db.pre-v2-*` backup before migrating an existing version-1 store. Read-only discovery never migrates. Old binaries refuse schema 2. Keep the backup; restore only with all clients stopped and consistent handling of SQLite sidecars. New empty stores need no migration backup.
 
 For removal without reinstalling:
 
@@ -119,3 +119,11 @@ For removal without reinstalling:
 ```
 
 This removes only unchanged Conductor-owned integration and preserves tracker data and unrelated user configuration. User-edited owned content produces a conflict for manual reconciliation. Restart host sessions after removal. Remove the executable separately if desired; keep the data directory to retain history.
+
+## Optional managed workflow
+
+Project registration and workflow opt-in are separate. Legacy registered projects retain their existing ticket behavior. Configure preparation, execution authorization, and result validation once for a managed project; the user can delegate covered work fully to agents. Human QA is not mandatory for autonomous policy. See [workflow commands](reference/workflow-commands.md), [team commands](reference/team-commands.md), and [retrospective commands](reference/retrospective-commands.md) for tested payloads and actual command syntax.
+
+Ask an agent to use conductor-orchestrator for the approved project and scope. It reconciles existing roles and approvals, starts the workflow improver where enabled, prepares/reviews draft work, and starts fresh single-ticket workers as independent tasks become ready. All roles count against host limits. Ordinary workers may create discoveries, but those drafts pass through preparation before execution. Installing skills or assigning a ticket alone starts no background process.
+
+A host with no supported delegation can run bounded planning/retrospective and ordinary ticket work. It must report that managed agents were not launched. Linux execution and provider-specific native management are supported only where separately validated; sharing tickets across Codex and Claude does not imply one can control arbitrary processes of the other.

@@ -2,13 +2,14 @@ package cli
 
 import (
 	"context"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
 
 	"github.com/ZackMFleischman/conductor/internal/core"
 	"github.com/ZackMFleischman/conductor/internal/setup"
-	workskill "github.com/ZackMFleischman/conductor/skills/conductor-work"
+	skillbundle "github.com/ZackMFleischman/conductor/skills"
 )
 
 func init() { Register("setup", Setup) }
@@ -68,12 +69,22 @@ func Setup(ctx context.Context, env Env, args []string) (any, error) {
 		return nil, err
 	}
 	files := map[string][]byte{}
-	for _, p := range []string{"SKILL.md", "references/commands.md"} {
-		b, e := workskill.Files.ReadFile(p)
+	err = fs.WalkDir(skillbundle.Files, ".", func(p string, d fs.DirEntry, e error) error {
 		if e != nil {
-			return nil, e
+			return e
 		}
-		files[p] = b
+		if d.IsDir() {
+			return nil
+		}
+		b, e := skillbundle.Files.ReadFile(p)
+		if e != nil {
+			return e
+		}
+		files[strings.TrimPrefix(p, "conductor-work/")] = b
+		return nil
+	})
+	if err != nil {
+		return nil, err
 	}
 	options := setup.Options{Agents: agents, Executable: exe, DataHome: home, Remove: f.Bools["remove"], UserHome: userHome, CodexHome: codexHome, ClaudeHome: claudeHome, SkillFiles: files}
 	edits, err := setup.Plan(options)

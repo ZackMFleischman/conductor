@@ -456,11 +456,24 @@ func buildRecords(m *manifest, o Options, host string) error {
 		a := o.SkillFiles[k]
 		m.Records = append(m.Records, record{Path: p, Kind: "file", After: a, Hash: digest(a)})
 	}
+	return addPermissionRecord(m, o, host)
+}
+
+func addPermissionRecord(m *manifest, o Options, host string) error {
+	root := o.CodexHome
+	if host == "claude" {
+		root = o.ClaudeHome
+	}
 	config := filepath.Join(root, "config.toml")
 	if host == "claude" {
 		config = filepath.Join(root, "settings.json")
 	}
-	b, e = read(config)
+	for _, r := range m.Records {
+		if r.Path == config {
+			return nil
+		}
+	}
+	b, e := read(config)
 	if e != nil {
 		return e
 	}

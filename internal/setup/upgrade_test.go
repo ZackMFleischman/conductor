@@ -83,3 +83,44 @@ func TestUpgradeDoesNotOverwriteEditedSkill(t *testing.T) {
 		t.Fatal("preview mutated file")
 	}
 }
+
+func TestUpgradeAddsRootAfterUserEnablesElevatedSandbox(t *testing.T) {
+	o := fixture(t)
+	o.Platform = "windows"
+	o.Agents = []string{"codex"}
+	p := filepath.Join(o.CodexHome, "config.toml")
+	put(t, p, []byte("[windows]\nsandbox = \"unelevated\"\n"))
+	edits, err := Plan(o)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = Apply(edits); err != nil {
+		t.Fatal(err)
+	}
+	put(t, p, bytes.ReplaceAll(get(t, p), []byte("unelevated"), []byte("elevated")))
+	edits, err = Plan(o)
+	if err != nil {
+		t.Fatal(err)
+	}
+	access, err := PlannedAccess(o, edits)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !access["codex"].RootConfigured {
+		t.Fatal("existing installation did not add supported root after user mode change")
+	}
+	if err = Apply(edits); err != nil {
+		t.Fatal(err)
+	}
+	o.Remove = true
+	edits, err = Plan(o)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = Apply(edits); err != nil {
+		t.Fatal(err)
+	}
+	if string(get(t, p)) != "[windows]\nsandbox = \"elevated\"\n" {
+		t.Fatal("uninstall undid user's mode change")
+	}
+}

@@ -1,4 +1,4 @@
-# CLI tracer commands
+# Conductor work commands
 
 All commands return one JSON envelope: `{"ok":true,"data":...}` or `{"ok":false,"error":{"code":...,"message":...,"details":...}}`. Use `--json`. Exit codes: 0 success, 2 usage, 3 conflict, 4 missing entity, 5 storage/access failure. Read `data` only after checking `ok`.
 
@@ -58,3 +58,7 @@ Integration handoff: validate these source commits together in APP-14 after land
 PRs are optional, may group multiple coherent tickets, and do not determine ticket state. Read the project's delivery preference; do not infer merge permission from assignment. Implementation acceptance can cover tested worktree commits when its criteria say so.
 
 Use a separate ordinary integration ticket, such as APP-14, for combined behavior. Its evidence records included source commits, exact landed target SHA (including squash/rebase results), validation commands and outcomes, and combined manual QA. Compare the current target SHA with that recorded SHA before treating the evidence as current; a newer target needs fresh validation. Do not make integration wait on implementation tickets whose criteria already wait for integration. Integration and human acceptance remain separate explicit actions.
+
+## Prepared-work projects
+
+Read [workflow commands](workflow-commands.md) for draft preparation, versioned authorization, dependencies, blocking, and non-human validation. The human accept/reject examples above apply only to tickets whose recorded policy requires or permits those explicit user actions. Managed startup uses [team commands](team-commands.md); problem processing uses [retrospective commands](retrospective-commands.md).

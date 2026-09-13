@@ -88,5 +88,9 @@ func upgradeRecords(m *manifest, o Options, host string) (bool, error) {
 			changed = true
 		}
 	}
-	return changed, nil
+	before := len(m.Records)
+	if err := addPermissionRecord(m, o, host); err != nil {
+		return false, err
+	}
+	return changed || len(m.Records) != before, nil
 }

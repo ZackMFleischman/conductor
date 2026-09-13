@@ -36,6 +36,13 @@ func TestSetupCLI(t *testing.T) {
 		t.Fatal("preview wrote instructions")
 	}
 	run("setup", "--agents", "codex,claude", "--apply", "--json")
+	for _, name := range []string{"conductor-work", "conductor-plan", "conductor-worker", "conductor-orchestrator", "conductor-retrospective", "conductor-workflow-improver"} {
+		for _, skillRoot := range []string{filepath.Join(root, ".agents", "skills"), filepath.Join(root, "custom claude", "skills")} {
+			if _, err := os.Stat(filepath.Join(skillRoot, name, "SKILL.md")); err != nil {
+				t.Fatalf("missing installed skill %s: %v", name, err)
+			}
+		}
+	}
 	b, e := os.ReadFile(filepath.Join(root, ".agents", "skills", "conductor-work", "SKILL.md"))
 	if e != nil || !bytes.Contains(b, []byte("name: conductor-work")) {
 		t.Fatalf("packaged skill missing: %v", e)
