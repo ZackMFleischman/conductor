@@ -1,0 +1,59 @@
+{
+  "packet_id": "read5-record-20260913-0224",
+  "criterion": "Integration acceptance: fresh independently validating session executes documented elevated context/version/Git discovery in its exact sandbox-created checkout and records correct READ project/root and exit status.",
+  "evidence_scope": "historical-decision",
+  "recorded_at": "2026-09-13T02:24:52.3994855Z",
+  "claims": [
+    "Independent validator read-remedy-validator-1 used a fresh detached validate-access checkout at submitted commit 422ec08a0da8cd7e32f65c9c402102c3b7b3654a.",
+    "The extracted PowerShell block was executed through exec_command with require_escalated after substituting the checkout assignment.",
+    "The validator reported unit and integration checks as pass."
+  ],
+  "observations": {
+    "checkout": "C:/Users/zFlei/repos/conductor/.superpowers/case-study/worktrees/validate-access",
+    "source_commit": "422ec08a0da8cd7e32f65c9c402102c3b7b3654a",
+    "executor": "read-remedy-validator-1 / 07ae0d54-a69e-497c-b574-a6b0fe9ce8e0 / f64cf401-8856-4a7e-bb97-076a4eb75ab1",
+    "command_results": [
+      "git root matched validate-access; exit=0",
+      "git common directory matched reading-list/.git; exit=0",
+      "checkout context returned the READ project; exit=0",
+      "explicit READ context returned the READ project; exit=0",
+      "installed version returned schema 3 and layers-v1; exit=0"
+    ],
+    "directory_creation_provenance": null,
+    "directory_owner_sid": null,
+    "elevated_process_sid": null
+  },
+  "artifacts": [
+    ".superpowers/case-study/coordination/remedy-validator/read5-validation.json",
+    ".superpowers/case-study/coordination/remedy-validator/read5-tested.ps1",
+    ".superpowers/case-study/coordination/remedy-validator/read5-startup-output.txt",
+    ".superpowers/case-study/coordination/remedy-validator/read5-source.txt"
+  ],
+  "evidence_map": [
+    {
+      "artifact": ".superpowers/case-study/coordination/remedy-validator/read5-validation.json",
+      "facts": [
+        "commit=422ec08a0da8cd7e32f65c9c402102c3b7b3654a",
+        "context_id=/root/case_orchestrator/remedy_validator",
+        "checks.unit=pass; checks.integration=pass",
+        "evidence calls the checkout fresh and detached"
+      ]
+    },
+    {
+      "artifact": ".superpowers/case-study/coordination/remedy-validator/read5-startup-output.txt",
+      "facts": [
+        "git root validate-access exit=0",
+        "git common directory reading-list/.git exit=0",
+        "checkout context exit=0",
+        "explicit READ context exit=0",
+        "version exit=0"
+      ]
+    },
+    {
+      "artifact": ".superpowers/case-study/coordination/remedy-validator/read5-source.txt",
+      "facts": [
+        "commit 422ec08a0da8cd7e32f65c9c402102c3b7b3654a changed only runbooks/windows-startup.md"
+      ]
+    }
+  ]
+}

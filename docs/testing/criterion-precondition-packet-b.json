@@ -1,0 +1,79 @@
+{
+  "packet_id": "read5-record-20260913-0302",
+  "criterion": "Integration acceptance: fresh independently validating session executes documented elevated context/version/Git discovery in its exact sandbox-created checkout and records correct READ project/root and exit status.",
+  "evidence_scope": "later-prospective-addendum",
+  "recorded_after": "read5-record-20260913-0224",
+  "claims": [
+    "Fresh host /root/case_orchestrator/effectiveness_repeat supplied a later startup execution at delivered source a6e1e980a0dc08c130a3658d3a02d161826f1991.",
+    "The runbook Git object 6ea2e9446e2633079285a49837d6070585204799 was unchanged from submitted commit 422ec08a0da8cd7e32f65c9c402102c3b7b3654a.",
+    "The startup result reported the same five command outcomes as successful."
+  ],
+  "observations": {
+    "checkout": "C:/Users/zFlei/repos/conductor/.superpowers/case-study/worktrees/fresh-repeat",
+    "source_commit": "a6e1e980a0dc08c130a3658d3a02d161826f1991",
+    "guide_object": "6ea2e9446e2633079285a49837d6070585204799",
+    "original_guide_commit": "422ec08a0da8cd7e32f65c9c402102c3b7b3654a",
+    "guide_verification": {
+      "guide_unchanged": true,
+      "exact_script_assignment_substitution": true,
+      "native_original_chunk": "7cbd07",
+      "exit_code": 0
+    },
+    "executor": "/root/case_orchestrator/effectiveness_repeat / eab05085-591a-4c9a-9bfe-c382441d8e0c / 7e7bc17f-23e5-44ad-bf65-fced57a71a53",
+    "directory_created_with": "workspace sandbox, no escalation",
+    "directory_owner": "TOSHREDSYOUSAY\\\\CodexSandboxOffline",
+    "directory_owner_sid": "S-1-5-21-3216565485-2188586592-2566577506-1010",
+    "elevated_process_sid": "S-1-5-21-3216565485-2188586592-2566577506-1002",
+    "command_results": [
+      "git root matched fresh-repeat; exit=0",
+      "git common directory matched reading-list/.git; exit=0",
+      "checkout context returned the READ project; exit=0",
+      "explicit READ context returned the READ project; exit=0",
+      "installed version returned schema 3 and layers-v1; exit=0"
+    ]
+  },
+  "artifacts": [
+    ".superpowers/case-study/coordination/repeat-directory-ownership.json",
+    ".superpowers/case-study/coordination/effectiveness-repeat/ownership-session-result.json",
+    ".superpowers/case-study/coordination/effectiveness-repeat/startup-command.ps1",
+    ".superpowers/case-study/coordination/effectiveness-repeat/startup-result.json",
+    ".superpowers/case-study/coordination/effectiveness-repeat/startup-raw.txt",
+    ".superpowers/case-study/coordination/final-validator/read5-prospective-artifact-check.json"
+  ],
+  "evidence_map": [
+    {
+      "artifact": ".superpowers/case-study/coordination/repeat-directory-ownership.json",
+      "facts": [
+        "permissionMode=workspace sandbox, no escalation",
+        "path=C:/Users/zFlei/repos/conductor/.superpowers/case-study/worktrees/fresh-repeat",
+        "createdBy=S-1-5-21-3216565485-2188586592-2566577506-1010"
+      ]
+    },
+    {
+      "artifact": ".superpowers/case-study/coordination/effectiveness-repeat/ownership-session-result.json",
+      "facts": [
+        "directoryOwnerSid=S-1-5-21-3216565485-2188586592-2566577506-1010",
+        "processSid=S-1-5-21-3216565485-2188586592-2566577506-1002",
+        "source=a6e1e980a0dc08c130a3658d3a02d161826f1991",
+        "guideObject=6ea2e9446e2633079285a49837d6070585204799",
+        "session worktree_root=fresh-repeat; head=a6e1e980a0dc08c130a3658d3a02d161826f1991; claim=null"
+      ]
+    },
+    {
+      "artifact": ".superpowers/case-study/coordination/effectiveness-repeat/startup-result.json",
+      "facts": [
+        "native chunk_id=7cbd07; exit_code=0",
+        "output records all five Git/context/version commands with exit=0"
+      ]
+    },
+    {
+      "artifact": ".superpowers/case-study/coordination/final-validator/read5-prospective-artifact-check.json",
+      "facts": [
+        "guideObject=6ea2e9446e2633079285a49837d6070585204799",
+        "guideUnchanged=true",
+        "exactScriptAssignmentSubstitution=true",
+        "nativeOriginalChunk=7cbd07; exitCode=0"
+      ]
+    }
+  ]
+}
