@@ -6,7 +6,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
 	"strings"
 )
 
@@ -26,15 +25,11 @@ func Canonical(path string) (string, error) {
 	if e != nil {
 		return "", e
 	}
-	p, e = filepath.EvalSymlinks(p)
+	p, e = canonicalPath(p)
 	if e != nil {
 		return "", e
 	}
-	p = filepath.Clean(p)
-	if runtime.GOOS == "windows" {
-		p = strings.ToLower(p)
-	}
-	return p, nil
+	return filepath.Clean(p), nil
 }
 func Resolve(cwd string) (Context, error) {
 	run := func(args ...string) (string, error) {
