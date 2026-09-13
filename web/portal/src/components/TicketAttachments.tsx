@@ -1,4 +1,4 @@
-import { useId, useMemo, useState } from 'react';
+import { useId, useMemo, useRef, useState } from 'react';
 import { Alert, Box, Button, ButtonBase, Dialog, DialogContent, DialogTitle, Stack, Typography } from '@mui/material';
 import AttachFile from '@mui/icons-material/AttachFile';
 import InsertDriveFileOutlined from '@mui/icons-material/InsertDriveFileOutlined';
@@ -14,10 +14,11 @@ function ImageViewer({ attachment, onClose }: { attachment: TicketAttachment; on
   const [actualSize, setActualSize] = useState(false);
   const [failed, setFailed] = useState(false);
   const titleId = useId();
-  return <Dialog open fullScreen onClose={onClose} aria-labelledby={titleId} onClick={event => event.stopPropagation()}>
-    <DialogTitle id={`${titleId}-bar`} sx={{ py: 1 }}><Stack direction="row" sx={{ alignItems: 'center', gap: 1, flexWrap: 'wrap' }}><Typography id={titleId} component="span" sx={{ flex: 1, overflowWrap: 'anywhere' }}>{attachment.name}</Typography><Button onClick={() => setActualSize(value => !value)}>{actualSize ? 'Fit to screen' : 'Actual size'}</Button><Button component="a" href={attachment.url} target="_blank" rel="noopener noreferrer">Open original</Button><Button onClick={onClose}>Close image</Button></Stack></DialogTitle>
+  const closeButton = useRef<HTMLButtonElement>(null);
+  return <Dialog open fullWidth maxWidth="lg" onClose={onClose} aria-labelledby={titleId} onClick={event => event.stopPropagation()} slotProps={{ paper: { sx: { maxWidth: 1100, m: { xs: 1, sm: 4 }, width: 'calc(100% - 32px)', maxHeight: '90dvh', borderRadius: 2 } } }}>
+    <DialogTitle id={`${titleId}-bar`} sx={{ py: 1 }}><Stack direction="row" sx={{ alignItems: 'center', gap: 1, flexWrap: 'wrap' }}><Typography id={titleId} component="span" sx={{ flex: 1, overflowWrap: 'anywhere' }}>{attachment.name}</Typography><Button onClick={() => setActualSize(value => !value)}>{actualSize ? 'Fit to screen' : 'Actual size'}</Button><Button component="a" href={attachment.url} target="_blank" rel="noopener noreferrer">Open original</Button><Button ref={closeButton} onClick={onClose}>Close image</Button></Stack></DialogTitle>
     <DialogContent sx={{ p: 2, bgcolor: '#eff1f4', overflow: 'auto' }}>
-      {failed ? <Alert severity="warning">Image unavailable. The source may have moved or been removed.</Alert> : <Box component="img" src={attachment.url} alt={attachment.name} referrerPolicy="no-referrer" onError={() => setFailed(true)} sx={{ display: 'block', margin: 'auto', ...(actualSize ? { maxWidth: 'none', maxHeight: 'none' } : { maxWidth: '100%', maxHeight: 'calc(100dvh - 120px)', objectFit: 'contain' }) }} />}
+      {failed ? <Alert severity="warning" action={<Button onClick={() => { setFailed(false); closeButton.current?.focus(); }}>Retry image</Button>}>Image unavailable. The source may have moved or been removed.</Alert> : <Box component="img" src={attachment.url} alt={attachment.name} referrerPolicy="no-referrer" onError={() => setFailed(true)} sx={{ display: 'block', margin: 'auto', ...(actualSize ? { maxWidth: 'none', maxHeight: 'none' } : { maxWidth: '100%', maxHeight: 'calc(90dvh - 140px)', objectFit: 'contain' }) }} />}
     </DialogContent>
   </Dialog>;
 }

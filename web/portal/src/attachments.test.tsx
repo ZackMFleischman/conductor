@@ -32,6 +32,8 @@ it('shows a card thumbnail, compact details and a full-size image viewer with fi
   viewer = await screen.findByRole('dialog', { name: 'Preview' });
   fireEvent.error(within(viewer).getByRole('img'));
   expect(within(viewer).getByText('Image unavailable. The source may have moved or been removed.')).toBeInTheDocument();
+  await user.click(within(viewer).getByRole('button', { name: 'Retry image' }));
+  expect(within(viewer).getByRole('img')).toHaveAttribute('src', 'https://example.com/screen.png');
   await user.keyboard('{Escape}');
   expect(await screen.findByRole('dialog', { name: /P-1/ })).toBeInTheDocument();
 });
