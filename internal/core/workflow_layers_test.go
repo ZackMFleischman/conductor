@@ -181,3 +181,20 @@ func TestPolicyCoordinatorCannotFallBackDuringShutdown(t *testing.T) {
 		})
 	}
 }
+
+func TestStandaloneHumanExecutionAllowsAgentPreparation(t *testing.T) {
+	f := newWorkflowFixture(t, "human")
+	f.wf("configure", "", WorkflowInput{Human: true, ExpectedRevision: 1, Reason: "retain execution approval", ValidationMode: "human", ExecutionMode: "human", PlanReview: "lightweight", RequiredChecks: []string{"unit"}})
+	v := f.ticket("human execution")
+	f.wf("edit", v.ID, WorkflowInput{SessionID: f.worker, Title: v.Title, Body: "clarified criteria", Reason: "authorized planning scope"})
+	_, err := f.s.Workflow(f.ctx, f.req(), "edit", WorkflowInput{ProjectID: f.p, TicketID: v.ID, SessionID: f.worker, ExpectedRevision: f.get(v.ID).Revision, Title: v.Title, Body: "clarified criteria", Reason: "attempt validation change", ValidationMode: "automated", RequiredChecks: []string{"unit"}})
+	workflowFail(t, "AUTHORITY_REQUIRED", err)
+	f.wf("prepare", v.ID, WorkflowInput{SessionID: f.worker, Body: "criterion coverage and checks"})
+	_, err = f.s.Workflow(f.ctx, f.req(), "authorize", WorkflowInput{ProjectID: f.p, TicketID: v.ID, SessionID: f.worker, ExpectedRevision: f.get(v.ID).Revision, Reason: "attempt execution authorization"})
+	workflowFail(t, "HUMAN_REQUIRED", err)
+	f.wf("authorize", v.ID, WorkflowInput{Human: true, Reason: "user approves prepared scope"})
+	current := f.get(v.ID)
+	if current.State != "ready" || current.Workflow.AuthorizedRevision != current.Workflow.SpecRevision {
+		t.Fatal(current)
+	}
+}

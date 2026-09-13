@@ -110,8 +110,8 @@ func workflowActor(ctx context.Context, c *sql.Conn, in WorkflowInput, coordinat
 			if e != nil {
 				return "", e
 			}
-			if sp == nil || sp.ExecutionMode != "delegated" {
-				return "", Fail("AUTHORITY_REQUIRED", "ticket policy does not delegate execution")
+			if sp == nil {
+				return "", Fail("AUTHORITY_REQUIRED", "ticket workflow policy required")
 			}
 		}
 	}

@@ -29,7 +29,7 @@ Initial `policy.json`:
 
 `execution_mode`: `human` or `delegated`. `plan_review`: `lightweight` or `independent_agent`. `validation_mode`: `human`, `independent_agent`, or `automated`. Automated mode requires at least one named check. Updates use the current policy `expected_revision` (or `--expect-revision N`) and a reason. Original intent is immutable; later configure calls do not overwrite it. `amendment.json` contains `{"intent":"Explicit subsequent user amendment"}`; amendments append attribution and history.
 
-`--human` records an explicitly authorized human action. Agents must not use it to impersonate human QA or bypass a retained gate. Delegated ticket preparation and authorization work with a live standalone session under the standing human configuration grant and inherited delegated ticket policy. If any non-stopped team exists, use its current coordinator session and token; stopping or released runs require reconciliation.
+`--human` records an explicitly authorized human action. Agents must not use it to impersonate human QA or bypass a retained gate. Agents can edit, dispose findings, prepare, and unblock tickets with a live standalone session under the standing human configuration grant and inherited ticket policy. Execution authorization additionally requires delegated execution mode; human execution mode retains only that authorization for the user. If any non-stopped team exists, use its current coordinator session and token; stopping or released runs require reconciliation.
 
 ## Drafts, specifications, critiques, preparation, authorization
 
@@ -42,7 +42,7 @@ ticket prepare ID --session COORDINATOR --coordination TOKEN --expect-revision N
 ticket authorize ID --session COORDINATOR --coordination TOKEN --expect-revision N --body-file grant.json --request grant-1
 ```
 
-For standalone delegated policy, use `--session S` and omit `--coordination` in the examples above. Human-controlled ticket operations use `--human`. Critiques always use a live reviewer session. With a non-stopped team, planning mutations require its live coordinator and current exclusive token, including after recovery. They do not require worker dispatch readiness. Historical managed child sessions cannot become standalone policy actors.
+For standalone planning, use `--session S` and omit `--coordination` in the examples above. When execution mode is human, use `--human` for authorization after agent preparation. Human-controlled ticket operations use `--human`. Critiques always use a live reviewer session. With a non-stopped team, planning mutations require its live coordinator and current exclusive token, including after recovery. They do not require worker dispatch readiness. Historical managed child sessions cannot become standalone policy actors.
 
 `spec.json` is a full replacement specification; omitted parent/dependencies clear them:
 
