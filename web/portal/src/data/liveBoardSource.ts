@@ -1,4 +1,5 @@
-import { statuses, type BoardSnapshot, type BoardSource, type BoardTicket } from '../board';
+import { statuses, type BoardSnapshot, type BoardSource, type BoardTicket, type ProblemSummary, type ProblemDetail } from '../board';
+import { loadTicketNotes } from './ticketNotes';
 
 export type Project = BoardSnapshot['project'];
 export type LiveSnapshot = BoardSnapshot & { revision: string };
@@ -23,6 +24,17 @@ function reference(value: unknown) {
   const r = object(value);
   return { id: text(r.id, true), key: text(r.key, true), title: text(r.title) };
 }
+function problemSummary(value: unknown): ProblemSummary {
+  const p = object(value);
+  if (typeof p.noteCount !== 'number' || !Number.isSafeInteger(p.noteCount) || p.noteCount < 0) throw invalid();
+  return { id: text(p.id, true), key: text(p.key, true), summary: text(p.summary), createdAt: text(p.createdAt), updatedAt: text(p.updatedAt), noteCount: p.noteCount, ...(p.ticketKey === undefined ? {} : { ticketKey: text(p.ticketKey, true) }) };
+}
+export function decodeProblem(value: unknown, id: string): ProblemDetail {
+  const p = object(value);
+  const summary = problemSummary(p);
+  if (summary.id !== id) throw invalid();
+  return { ...summary, expected: text(p.expected), actual: text(p.actual), correction: text(p.correction), evidence: text(p.evidence), reporter: text(p.reporter), notes: array(p.notes).map(value => { const n = object(value); return { id: text(n.id, true), body: text(n.body), createdAt: text(n.createdAt), reporter: text(n.reporter) }; }) };
+}
 export function decodeProjects(value: unknown): Project[] {
   const projects = array(object(value).projects).map(project);
   if (new Set(projects.map(p => p.id)).size !== projects.length) throw invalid();
@@ -43,7 +55,7 @@ export function decodeBoard(value: unknown, projectId: string): LiveSnapshot {
         if (typeof a.size !== 'number' || !Number.isSafeInteger(a.size) || a.size < 0) throw invalid();
         return { id: text(a.id, true), name: text(a.name, true), url: text(a.url, true), mediaType: text(a.mediaType, true), size: a.size, ...(a.modifiedAt === undefined ? {} : { modifiedAt: text(a.modifiedAt) }) };
       }),
-      ...Object.fromEntries(['kind', 'summary', 'evidence', 'qa', 'createdAt', 'updatedAt'].filter(key => t[key] !== undefined).map(key => [key, text(t[key])])),
+      ...Object.fromEntries(['kind', 'summary', 'evidence', 'qa', 'createdAt', 'updatedAt', 'completedAt'].filter(key => t[key] !== undefined).map(key => [key, text(t[key])])),
       assignee: owner === null ? null : { id: text(owner.id, true), name: text(owner.name, true) },
       blockers: array(t.blockers).map(value => {
         const b = object(value);
@@ -73,7 +85,9 @@ export function decodeBoard(value: unknown, projectId: string): LiveSnapshot {
       owners.set(t.assignee.id, t.assignee.name);
     }
   }
-  return { project: boardProject, tickets, revision: text(data.revision, true) };
+  const problems = data.problems === undefined ? [] : array(data.problems).map(problemSummary);
+  if (new Set(problems.map(p => p.id)).size !== problems.length || new Set(problems.map(p => p.key)).size !== problems.length || problems.some(p => keys.has(p.key) || (p.ticketKey && !keys.has(p.ticketKey)))) throw invalid();
+  return { project: boardProject, tickets, problems, revision: text(data.revision, true) };
 }
 async function getJSON(url: string, signal?: AbortSignal): Promise<unknown> {
   const response = await fetch(url, { signal, cache: 'no-store', headers: { Accept: 'application/json' } });
@@ -88,6 +102,8 @@ export function createLiveBoardSource(projectId: string): BoardSource {
   return {
     kind: 'live',
     async load(signal) { return decodeBoard(await getJSON(`${base}/board`, signal), projectId); },
+    async loadProblem(id, signal) { return decodeProblem(await getJSON(`${base}/problems/${encodeURIComponent(id)}`, signal), id); },
+    loadTicketNotes: (id, before, signal) => loadTicketNotes(projectId, id, before, signal),
     subscribe(onChange, onStatus) {
       let stopped = false;
       let timer: ReturnType<typeof setTimeout> | undefined;

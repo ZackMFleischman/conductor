@@ -29,3 +29,5 @@ The improver proposes urgency and remedies; you own shared prioritization and di
 When idle use native interruptible waits (default 30 seconds), without a claim or transaction held merely to poll. Bound transient retries; storage or authentication failure is not an empty queue. Persist decisions/checkpoints so resumption does not depend on this conversation.
 
 On stop, cease dispatch, request checkpoints, preserve unresolved children/claims and report those still active. Use authorized host controls only. A stopped orchestrator does not prove children stopped, and this skill cannot wake a closed host. Do not add a daemon, hook, or custom launcher to simulate missing capabilities.
+
+Apply [ticket comment discipline](../conductor-work/references/ticket-comments.md): retain decisions, questions, blockers, corrections and evidence; omit routine/no-op narration and read relevant history on demand.

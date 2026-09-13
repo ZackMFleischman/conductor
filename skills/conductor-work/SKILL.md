@@ -26,3 +26,5 @@ For prepared-work projects, read [workflow commands](references/workflow-command
 Before stopping, checkpoint and release active work with a reason, then stop the session. Quiet or old contact is not proof of death; claims do not expire. A stopped session cannot resume. Human recovery requires inspecting the former worker and uncommitted files first: releasing a claim does not stop the process or make its files safe to overwrite.
 
 This skill performs the authorized task. Installation starts no background worker or orchestration loop.
+
+Apply [ticket comment discipline](references/ticket-comments.md): retain decisions, questions, blockers, corrections and evidence; omit routine/no-op narration and read relevant history on demand.

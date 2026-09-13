@@ -87,6 +87,18 @@ func TestBoardIncludesStoredDetails(t *testing.T) {
 	}
 }
 
+func TestCompletionTimestampIgnoresLaterNotes(t *testing.T) {
+	f := newBoardFixture(t)
+	f.project(t, "p", "P")
+	f.ticket(t, "t", "p", "done")
+	boardExec(t, f.writer, "INSERT INTO events(id,project_id,ticket_id,actor_id,kind,payload,created_at) VALUES('accept','p','t','human','ticket.accept','{}','2026-02-01')")
+	boardExec(t, f.writer, "INSERT INTO events(id,project_id,ticket_id,actor_id,kind,payload,created_at) VALUES('note','p','t','human','ticket.note','{}','2026-03-01')")
+	boardExec(t, f.writer, "UPDATE tickets SET updated_at='2026-03-01' WHERE id='t'")
+	if got := readBoard(t, f.reader, "p").Tickets[0].CompletedAt; got != "2026-02-01" {
+		t.Fatalf("completion = %s", got)
+	}
+}
+
 func TestDBReaderEmptyProjectsAndParameterizedLookup(t *testing.T) {
 	f := newBoardFixture(t)
 	projects, err := f.reader.Projects(context.Background())

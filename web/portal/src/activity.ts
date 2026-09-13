@@ -1,6 +1,14 @@
-import type { BoardTicket } from './board';
+import type { BoardTicket, ProblemSummary } from './board';
 
 export interface ActivityEntry { id: string; key: string; title: string; at: string; changes: string[] }
+export function problemChanges(previous: readonly ProblemSummary[], next: readonly ProblemSummary[], at: string): ActivityEntry[] {
+  const before = new Map(previous.map(p => [p.id, p]));
+  return next.flatMap(problem => {
+    const old = before.get(problem.id);
+    if (old && JSON.stringify(old) === JSON.stringify(problem)) return [];
+    return [{ id: `${at}:problem:${problem.id}`, key: problem.key, title: problem.summary, at, changes: [!old ? 'Problem reported' : problem.noteCount > old.noteCount ? 'Problem report update added' : 'Problem report updated'] }];
+  });
+}
 const statusName = (status: string) => ({ ready: 'Ready', in_progress: 'In progress', blocked: 'Blocked', review: 'Review', done: 'Done' })[status] ?? status;
 
 export function ticketChanges(previous: readonly BoardTicket[], next: readonly BoardTicket[], at: string): ActivityEntry[] {

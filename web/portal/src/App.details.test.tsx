@@ -10,7 +10,7 @@ it('highlights complete phrases across ticket references', () => {
   expect([...container.querySelectorAll('mark')].map(node => node.textContent).join('')).toBe('Fix P-45');
 });
 
-const snapshot = (): BoardSnapshot => ({ project: { id: 'p', name: 'Project', description: '' }, tickets: Array.from({ length: 45 }, (_, i) => ({ id: String(i), key: `P-${i + 1}`, title: `Ticket ${i + 1}`, description: i === 0 ? 'See P-45 and **important details**.' : 'Description', status: 'done', assignee: null, ancestors: [], blockers: [], kind: 'bug', summary: 'Delivered summary' })) });
+const snapshot = (count = 45): BoardSnapshot => ({ project: { id: 'p', name: 'Project', description: '' }, tickets: Array.from({ length: count }, (_, i) => ({ id: String(i), key: `P-${i + 1}`, title: `Ticket ${i + 1}`, description: i === 0 ? 'See P-45 and **important details**.' : 'Description', status: 'done', assignee: null, ancestors: [], blockers: [], kind: 'bug', summary: 'Delivered summary' })) });
 
 it('caps Done at20, expands by20, shows all, and keeps the total count', async () => {
   const user = userEvent.setup();
@@ -22,6 +22,16 @@ it('caps Done at20, expands by20, shows all, and keeps the total count', async (
   expect(within(done).getAllByRole('article')).toHaveLength(40);
   await user.click(within(done).getByRole('button', { name: 'Show all' }));
   expect(within(done).getAllByRole('article')).toHaveLength(45);
+}, 15000);
+
+it('orders Done by completion time before paging, unaffected by later comments', async () => {
+  const board = snapshot();
+  board.tickets = board.tickets.map((ticket, i) => ({ ...ticket, completedAt: new Date(Date.UTC(2026, 0, i + 1)).toISOString(), updatedAt: i ? '2026-01-01T00:00:00Z' : '2027-01-01T00:00:00Z' }));
+  render(<App source={{ kind: 'fixture', load: async () => board }} />);
+  const done = await screen.findByRole('region', { name: 'Done' });
+  expect(within(done).getAllByRole('article')[0]).toHaveAccessibleName('Ticket 45');
+  expect(within(done).getAllByRole('article')).toHaveLength(20);
+  expect(within(done).queryByRole('article', { name: 'Ticket 1' })).not.toBeInTheDocument();
 });
 
 it('opens full Markdown details and follows references to hidden tickets', async () => {
@@ -42,7 +52,7 @@ it('opens full Markdown details and follows references to hidden tickets', async
 
 it('records live changes after the initial snapshot, skips unchanged refreshes, and links details', async () => {
   const user = userEvent.setup();
-  let board = snapshot();
+  let board = snapshot(2);
   let failing = false;
   let refresh = () => {};
   const source: BoardSource = { kind: 'live', load: async () => { if (failing) throw new Error('offline'); return board; }, subscribe: change => { refresh = change; return () => {}; } };

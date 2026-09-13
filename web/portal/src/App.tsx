@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { Alert, Box, Button, Chip, CircularProgress, CssBaseline, FormControl, InputAdornment, NativeSelect, Paper, Stack, TextField, ThemeProvider, Typography, useMediaQuery } from '@mui/material';
+import { Alert, Box, Button, Chip, CircularProgress, CssBaseline, FormControl, InputAdornment, NativeSelect, Paper, Stack, Tab, Tabs, TextField, ThemeProvider, Typography, useMediaQuery } from '@mui/material';
 import AccountTreeOutlined from '@mui/icons-material/AccountTreeOutlined';
 import SearchOutlined from '@mui/icons-material/SearchOutlined';
 import ScienceOutlined from '@mui/icons-material/ScienceOutlined';
-import type { BoardSnapshot, BoardSource, BoardTicket, ConnectionStatus } from './board';
+import type { BoardSnapshot, BoardSource, BoardTicket, ConnectionStatus, ProblemSummary } from './board';
 import { KanbanBoard } from './components/KanbanBoard';
 import { findSearchMatches } from './search';
 import { theme } from './theme';
@@ -11,7 +11,8 @@ import { markdownSearchText } from './components/highlightMarkdown';
 import { TicketLinksContext } from './components/TicketLinks';
 import { TicketDetails } from './components/TicketDetails';
 import { ActivityFeed, activityDrawerWidth } from './components/ActivityFeed';
-import { ticketChanges, type ActivityEntry } from './activity';
+import { problemChanges, ticketChanges, type ActivityEntry } from './activity';
+import { ProblemDetails, ProblemsView } from './components/ProblemsView';
 
 type LoadState = { status: 'loading' | 'error' | 'ready'; board?: BoardSnapshot };
 
@@ -26,6 +27,8 @@ export function App({ source, projectControl, projectName }: { source: BoardSour
   const [stale, setStale] = useState(false);
   const [updatedTickets, setUpdatedTickets] = useState<ReadonlySet<string>>(new Set());
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
+  const [selectedProblemKey, setSelectedProblemKey] = useState<string | null>(null);
+  const [view, setView] = useState<'tickets' | 'problems'>('tickets');
   const [activityOpen, setActivityOpen] = useState(false);
   const desktopDrawer = useMediaQuery(theme.breakpoints.up('sm'), { defaultMatches: true });
   const activityToggle = useRef<HTMLButtonElement>(null);
@@ -39,8 +42,8 @@ export function App({ source, projectControl, projectName }: { source: BoardSour
   const [archivedActivity, setArchivedActivity] = useState<ReadonlySet<string>>(new Set());
   const [showArchived, setShowArchived] = useState(false);
   const activeActivity = activity.filter(entry => !archivedActivity.has(entry.id));
-  const lastSnapshot = useRef<{ source: BoardSource; tickets: BoardTicket[] } | null>(null);
-  useEffect(() => { setSelectedKey(null); setActivity([]); setArchivedActivity(new Set()); setShowArchived(false); }, [source]);
+  const lastSnapshot = useRef<{ source: BoardSource; tickets: BoardTicket[]; problems: ProblemSummary[] } | null>(null);
+  useEffect(() => { setSelectedKey(null); setSelectedProblemKey(null); setView('tickets'); setActivity([]); setArchivedActivity(new Set()); setShowArchived(false); }, [source]);
   useEffect(() => {
     const controller = new AbortController();
     setState({ status: 'loading' });
@@ -48,6 +51,7 @@ export function App({ source, projectControl, projectName }: { source: BoardSour
     setStale(false);
     setUpdatedTickets(new Set());
     let previousRows = lastSnapshot.current?.source === source ? lastSnapshot.current.tickets : undefined;
+    let previousProblems = lastSnapshot.current?.source === source ? lastSnapshot.current.problems : [];
     let previousTickets = previousRows && new Map(previousRows.map(ticket => [ticket.id, JSON.stringify(ticket)]));
     const highlightTimers = new Map<string, ReturnType<typeof setTimeout>>();
     let transport: ConnectionStatus = 'connecting';
@@ -67,11 +71,13 @@ export function App({ source, projectControl, projectName }: { source: BoardSour
           if (!controller.signal.aborted && !pending && generation === connectionGeneration) {
             const nextTickets = new Map(board.tickets.map(ticket => [ticket.id, JSON.stringify(ticket)]));
             if (previousRows && source.kind === 'live') {
-              const changes = ticketChanges(previousRows, board.tickets, new Date().toISOString());
+              const at = new Date().toISOString();
+              const changes = [...ticketChanges(previousRows, board.tickets, at), ...problemChanges(previousProblems, board.problems ?? [], at)];
               if (changes.length) setActivity(previous => [...changes, ...previous].slice(0, 200));
             }
             previousRows = board.tickets;
-            lastSnapshot.current = { source, tickets: board.tickets };
+            previousProblems = board.problems ?? [];
+            lastSnapshot.current = { source, tickets: board.tickets, problems: previousProblems };
             if (previousTickets && source.kind === 'live') {
               const changed = [...nextTickets].filter(([id, value]) => previousTickets!.get(id) !== value).map(([id]) => id);
               if (changed.length) {
@@ -126,7 +132,11 @@ export function App({ source, projectControl, projectName }: { source: BoardSour
     return () => { document.title = 'Conductor'; };
   }, [displayedProjectName]);
   const tickets = board?.tickets ?? [];
-  const ticketLinks = useMemo(() => ({ keys: new Set(board?.tickets.map(t => t.key)), open: setSelectedKey }), [board]);
+  const problems = board?.problems ?? [];
+  const ticketLinks = useMemo(() => ({ keys: new Set([...(board?.tickets.map(t => t.key) ?? []), ...(board?.problems?.map(p => p.key) ?? [])]), open: (key: string) => {
+    if (board?.problems?.some(p => p.key === key)) { setSelectedKey(null); setSelectedProblemKey(key); }
+    else { setSelectedProblemKey(null); setSelectedKey(key); }
+  } }), [board]);
   const descriptionText = useMemo(() => new Map(board?.tickets.map(ticket => [ticket.id, markdownSearchText(ticket.description)])), [board]);
   const term = query.trim();
   const filtered = tickets.filter(ticket => {
@@ -168,6 +178,8 @@ export function App({ source, projectControl, projectName }: { source: BoardSour
       {state.status === 'loading' && <Stack role="status" direction="row" spacing={2} sx={{ py: 8, justifyContent: 'center' }}><CircularProgress size={20} /><Typography>Loading board…</Typography></Stack>}
       {(state.status === 'error' || stale) && <Alert severity={board ? 'warning' : 'error'} sx={{ mb: 2 }} action={<Button color="inherit" onClick={() => setAttempt(a => a + 1)}>Try again</Button>}>{board ? 'Live data is stale. Updates are unavailable; reconnecting or retrying will refresh the board.' : 'Could not load the board. Please try again.'}</Alert>}
       {board && <>
+        <Tabs value={view} onChange={(_event, value) => setView(value)} aria-label="Project work views" sx={{ minHeight: 36, borderBottom: '1px solid', borderColor: 'divider', '& .MuiTab-root': { minHeight: 36, py: 0.5 } }}><Tab id="tickets-tab" aria-controls="tickets-panel" value="tickets" label={`Tickets (${tickets.length})`} /><Tab id="problems-tab" aria-controls="problems-panel" value="problems" label={`Problems (${problems.length})`} /></Tabs>
+        {view === 'problems' ? <ProblemsView problems={problems} onOpen={ticketLinks.open} /> : <Box role="tabpanel" id="tickets-panel" aria-labelledby="tickets-tab" sx={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, pt: 1.5 }}>
         <Stack direction="row" sx={{ gap: 1, alignItems: 'center', flexWrap: 'wrap', mb: 1.5 }}>
           <TextField hiddenLabel size="small" placeholder="Search tickets…" value={query} onChange={e => setQuery(e.target.value)} sx={{ width: { sm: 280 }, flex: { xs: 1, sm: 'none' }, minWidth: 150, bgcolor: '#fff', '& .MuiInputBase-root': { height: 32, fontSize: '0.8rem' } }} slotProps={{ htmlInput: { 'aria-label': 'Search tickets' }, input: { startAdornment: <InputAdornment position="start"><SearchOutlined sx={{ fontSize: 17 }} /></InputAdornment> } }} />
           <FormControl variant="standard" sx={{ minWidth: 155, height: 32, px: 1, justifyContent: 'center', bgcolor: '#fff', border: '1px solid #c4cbd3', borderRadius: 1 }}>
@@ -189,10 +201,12 @@ export function App({ source, projectControl, projectName }: { source: BoardSour
           <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>{tickets.length === 0 ? 'Tickets will appear here when the source has work to show.' : 'Try another search or clear the filters to see all work.'}</Typography>
         </Paper>}
         <KanbanBoard tickets={filtered} query={term} onGroupFilter={setGroup} updatedTickets={updatedTickets} onOpen={setSelectedKey} />
+        </Box>}
       </>}
     </Box>
     </Box>
     <ActivityFeed entries={showArchived ? activity : activeActivity} open={activityOpen} desktop={desktopDrawer} onClose={closeActivity} archived={archivedActivity} showArchived={showArchived} archivedCount={activity.length - activeActivity.length} canArchive={activeActivity.length > 0} onArchive={() => { setArchivedActivity(new Set(activity.map(entry => entry.id))); setShowArchived(false); }} onToggleArchived={() => setShowArchived(value => !value)} />
-    <TicketDetails tickets={tickets} ticket={tickets.find(t => t.key === selectedKey)} selectedKey={selectedKey} onClose={() => setSelectedKey(null)} />
+    <TicketDetails tickets={tickets} problems={problems} source={source} ticket={tickets.find(t => t.key === selectedKey)} selectedKey={selectedKey} onClose={() => setSelectedKey(null)} />
+    {selectedProblemKey && <ProblemDetails key={selectedProblemKey} problem={problems.find(p => p.key === selectedProblemKey)} selectedKey={selectedProblemKey} source={source} onClose={() => setSelectedProblemKey(null)} />}
   </TicketLinksContext.Provider></ThemeProvider>;
 }

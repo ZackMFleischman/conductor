@@ -2,7 +2,7 @@ import { createContext, useContext, type ReactNode } from 'react';
 import type { Root, RootContent, ElementContent } from 'hast';
 
 export const TicketLinksContext = createContext<{ keys: ReadonlySet<string>; open: (key: string) => void }>({ keys: new Set(), open: () => {} });
-export const ticketHref = (key: string) => `#ticket=${encodeURIComponent(key)}`;
+export const ticketHref = (key: string) => `#${/-P\d+$/.test(key) ? 'problem' : 'ticket'}=${encodeURIComponent(key)}`;
 
 export function TicketLink({ ticketKey, children }: { ticketKey: string; children?: ReactNode }) {
   const { keys, open } = useContext(TicketLinksContext);
@@ -20,7 +20,7 @@ export function linkTicketReferences({ keys }: { keys: ReadonlySet<string> }) {
         if (child.type !== 'text') { visit(child); return [child as ElementContent]; }
         const result: ElementContent[] = [];
         let cursor = 0;
-        for (const match of child.value.matchAll(/\b[A-Za-z][A-Za-z0-9_]*-\d+\b/g)) {
+        for (const match of child.value.matchAll(/\b[A-Za-z][A-Za-z0-9_]*-P?\d+\b/g)) {
           if (!keys.has(match[0])) continue;
           result.push({ type: 'text', value: child.value.slice(cursor, match.index) });
           result.push({ type: 'element', tagName: 'a', properties: { href: ticketHref(match[0]) }, children: [{ type: 'text', value: match[0] }] });

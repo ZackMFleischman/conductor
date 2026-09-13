@@ -45,15 +45,17 @@ type Ticket struct {
 	QA          string       `json:"qa"`
 	CreatedAt   string       `json:"createdAt"`
 	UpdatedAt   string       `json:"updatedAt"`
+	CompletedAt string       `json:"completedAt,omitempty"`
 	Status      string       `json:"status"`
 	Assignee    *Assignee    `json:"assignee"`
 	Ancestors   []Reference  `json:"ancestors"`
 	Blockers    []Blocker    `json:"blockers"`
 }
 type Board struct {
-	Project  Project  `json:"project"`
-	Tickets  []Ticket `json:"tickets"`
-	Revision string   `json:"revision"`
+	Problems []ProblemSummary `json:"problems"`
+	Project  Project          `json:"project"`
+	Tickets  []Ticket         `json:"tickets"`
+	Revision string           `json:"revision"`
 }
 type Reader interface {
 	Projects(context.Context) ([]Project, error)

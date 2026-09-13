@@ -18,3 +18,5 @@ When evidence verifies an environment correction, format it using [validated sta
 Follow remedies through independent validation and a later fresh-worker repeat of the affected workflow. Append effectiveness or recurrence evidence without erasing failures. Coordinate skill rollouts at milestones/run boundaries; current workers do not automatically reload new instruction bytes.
 
 Checkpoint on stop and end the session through the normal lifecycle. A restarted improver restores coverage and deferred triggers; it must not create duplicate remedy tickets or silently mark unseen events processed. The skill runs only while its host keeps the agent alive and does not install scheduling or hooks.
+
+Apply [ticket comment discipline](../conductor-work/references/ticket-comments.md): retain decisions, questions, blockers, corrections and evidence; omit routine/no-op narration and read relevant history on demand.

@@ -53,7 +53,7 @@ export const TicketDescription = memo(function TicketDescription({ text, query, 
           ...(hideImages ? { img: () => null } : {}),
           a: ({ node: _node, ...props }) => <a {...props} onClick={event => {
             event.stopPropagation();
-            const key = props.href?.startsWith('#ticket=') ? props.href.slice(8) : props.href?.startsWith('#') ? props.href.slice(1) : '';
+            const key = props.href?.startsWith('#ticket=') ? props.href.slice(8) : props.href?.startsWith('#problem=') ? props.href.slice(9) : props.href?.startsWith('#') ? props.href.slice(1) : '';
             if (key && keys.has(key)) { event.preventDefault(); open(key); }
           }} aria-describedby={props['aria-describedby'] === 'footnote-label' ? `${id}-footnote-label` : props['aria-describedby']} tabIndex={!full && !expanded && overflows ? -1 : undefined} />,
           h2: ({ node: _node, ...props }) => <h2 {...props} id={props.id === 'footnote-label' ? `${id}-footnote-label` : props.id} />,

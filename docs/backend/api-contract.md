@@ -34,7 +34,17 @@ All mapping reads use one short SQLite read transaction. The browser never deter
 
 An unfinished prerequisite produces `{reason:"Waiting for KEY: title",ticketKey:"KEY"}`. Completed prerequisites do not block. Active milestone deferrals include their condition. Policy preparation/authorization compares to current specification revision. Assignment uses the agent's recorded name and identity and makes no process-liveness claim. Parent membership itself never creates an execution dependency.
 
-## Live invalidation
+## Workflow reports and ticket comments
+
+The board includes lightweight `problems` summaries with `id`, `key`, `summary`, optional related `ticketKey`, `createdAt`, `updatedAt`, and `noteCount`, newest reported first. Reports appear in a separate Problems tab; they do not introduce a ticket state or an inferred open/resolved status. Search covers the summary, key and related ticket. Report changes participate in board revision and the session activity feed.
+
+`GET /api/v1/projects/{project}/problems/{problem}` loads a report's expected behavior, actual behavior, correction, evidence, reporter and chronological append history on demand. Problem and ticket references open their corresponding detail dialogs. Unknown or cross-project report IDs return 404.
+
+`GET /api/v1/projects/{project}/tickets/{ticket}/notes?before=CURSOR` returns `{ticketId, notes, total, nextCursor?}`. Notes contain `id`, `author`, `body` and `createdAt`; only explicit ticket-note events are included, newest first in pages of 20. The opaque cursor preserves the event-sequence boundary. Invalid cursors return 400 and missing/cross-project tickets return 404. The Comments section starts collapsed, fetches only when opened, and refreshes the recent page when the open ticket changes. Older comments load explicitly. These routes are read-only and retain the same project scoping and local-service access model.
+
+Done tickets additionally expose `completedAt`, derived from the latest `ticket.accept` event, with `updatedAt` as a fallback for legacy records. The UI sorts Done by this timestamp descending before applying its 20-card limit. Later comments do not reorder completed tickets. Other columns retain their existing order.
+
+## Live invalidation protocol
 
 `GET /api/v1/projects/{projectId}/events` is an SSE stream. On **every** connection (including reconnect), send `event: board.changed`, `id: REVISION`, `data: {"revision":"REVISION"}` immediately. The client fetches the complete board on this signal. `Last-Event-ID` is not a replay request: always refetch, so reconnect catches arbitrarily old missed changes without a retained log.
 

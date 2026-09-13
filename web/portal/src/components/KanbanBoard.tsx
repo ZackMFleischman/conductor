@@ -10,6 +10,10 @@ export function KanbanBoard({ tickets, query, onGroupFilter, updatedTickets, onO
       {statuses.map(status => {
         const meta = statusMeta[status];
         const laneTickets = tickets.filter(ticket => ticket.status === status);
+        if (status === 'done') {
+          const completed = (ticket: BoardTicket) => Date.parse(ticket.completedAt || ticket.updatedAt || ticket.createdAt || '') || 0;
+          laneTickets.sort((a, b) => completed(b) - completed(a));
+        }
         return <Box component="section" key={status} aria-labelledby={`lane-${status}`} sx={{ bgcolor: '#eef1f5', p: 0.75, borderRadius: 1.5, minHeight: 100 }}>
           <Stack direction="row" spacing={1} sx={{ alignItems: 'center', px: 0.75, pt: 0.25, pb: 0.75 }}>
             <Box sx={{ width: 8, height: 8, bgcolor: meta.color, borderRadius: '50%' }} />
