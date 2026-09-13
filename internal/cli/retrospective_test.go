@@ -49,3 +49,38 @@ func TestRetrospectiveCLIBoundedResume(t *testing.T) {
 		t.Fatal(listing)
 	}
 }
+
+func TestRetrospectiveCLIStandaloneMilestone(t *testing.T) {
+	c := testkit.New(t)
+	testkit.MustData(t, c.Run("init", "--prefix", "APP", "--request", "init"))
+	testkit.MustData(t, c.Run("agent", "register", "--name", "reviewer", "--request", "agent"))
+	ss := testkit.MustData(t, c.Run("session", "start", "--agent", "reviewer", "--request", "session"))
+	sid := testkit.String(t, ss, "session_id")
+	dir := t.TempDir()
+	problem := filepath.Join(dir, "problem.json")
+	if err := os.WriteFile(problem, []byte(`{"summary":"setup","expected":"works","actual":"fails"}`), 0600); err != nil {
+		t.Fatal(err)
+	}
+	testkit.MustData(t, c.Run("problem", "add", "--session", sid, "--body-file", problem, "--request", "p"))
+	batch := testkit.MustData(t, c.Run("retrospective", "begin", "--session", sid, "--request", "begin"))
+	changes := batch["changes"].([]any)
+	body, _ := json.Marshal(map[string]any{"batch_id": batch["id"], "group_key": "setup", "action": "milestone", "observation": "failed", "rationale": "delivery first", "revisit_trigger": "release", "review_after": "2099-01-01T00:00:00Z", "event_seqs": []any{changes[0].(map[string]any)["seq"]}, "title": "Repair setup", "body": "Reproduce and fix", "milestone_id": "M1", "condition": "release validated"})
+	decisionFile := filepath.Join(dir, "decision.json")
+	if err := os.WriteFile(decisionFile, body, 0600); err != nil {
+		t.Fatal(err)
+	}
+	decision := testkit.MustData(t, c.Run("retrospective", "decide", "--session", sid, "--body-file", decisionFile, "--request", "decide"))
+	evidence := filepath.Join(dir, "evidence.txt")
+	if err := os.WriteFile(evidence, []byte("release checks passed"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	released := testkit.MustData(t, c.Run("retrospective", "release-milestone", "--session", sid, "--milestone", "M1", "--scope", "authorized setup improvement", "--reason", "milestone complete", "--body-file", evidence, "--request", "release"))
+	if released["released_tickets"].(float64) != 1 || released["scope"] != "authorized setup improvement" {
+		t.Fatal(released)
+	}
+	shown := testkit.MustData(t, c.Run("ticket", "show", testkit.String(t, decision, "ticket_id")))
+	ticket := shown
+	if ticket["state"] != "ready" {
+		t.Fatal(shown)
+	}
+}

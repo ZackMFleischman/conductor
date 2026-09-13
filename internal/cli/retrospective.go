@@ -17,7 +17,7 @@ func Retrospective(ctx context.Context, env Env, args []string) (any, error) {
 		return nil, core.Fail("USAGE", "retrospective subcommand required")
 	}
 	if args[0] == "--help" || args[0] == "help" {
-		return map[string]any{"commands": []string{"begin --session S --limit 50 --request KEY", "show BATCH", "status", "list [--due] [--limit 50] [--cursor ROWID]", "decide --session S --body-file decision.json --request KEY", "commit BATCH --session S --request KEY", "decision ID", "effectiveness ID --session S --outcome improved|unchanged|worse|unknown --body-file evidence.txt --request KEY", "release-milestone --milestone ID --session S --coordination TOKEN --body-file evidence.txt --request KEY"}, "contract": "conductor-team/v2", "reference": "docs/reference/retrospective-commands.md"}, nil
+		return map[string]any{"commands": []string{"begin --session S --limit 50 --request KEY", "show BATCH", "status", "list [--due] [--limit 50] [--cursor ROWID]", "decide --session S --body-file decision.json --request KEY", "commit BATCH --session S --request KEY", "decision ID", "effectiveness ID --session S --outcome improved|unchanged|worse|unknown --body-file evidence.txt --request KEY", "release-milestone --milestone ID --session S [--coordination TOKEN] [--scope TEXT --reason TEXT] --body-file evidence.txt --request KEY"}, "contract": "conductor-team/v2", "reference": "docs/reference/retrospective-commands.md"}, nil
 	}
 	op := args[0]
 	var flags []string
@@ -39,7 +39,7 @@ func Retrospective(ctx context.Context, env Env, args []string) (any, error) {
 	case "effectiveness":
 		flags = []string{"session", "outcome", "body-file", "request"}
 	case "release-milestone":
-		flags = []string{"session", "coordination", "milestone", "body-file", "request"}
+		flags = []string{"session", "coordination", "milestone", "scope", "reason", "body-file", "request"}
 	default:
 		return nil, core.Fail("USAGE", "unknown retrospective subcommand")
 	}
@@ -135,6 +135,6 @@ func Retrospective(ctx context.Context, env Env, args []string) (any, error) {
 		if err != nil {
 			return nil, err
 		}
-		return svc.ReleaseRetrospectiveMilestone(ctx, p.ID, f.Values["request"], core.RetrospectiveMilestoneInput{SessionID: f.Values["session"], CoordinationID: f.Values["coordination"], MilestoneID: f.Values["milestone"], Evidence: string(body)})
+		return svc.ReleaseRetrospectiveMilestone(ctx, p.ID, f.Values["request"], core.RetrospectiveMilestoneInput{SessionID: f.Values["session"], CoordinationID: f.Values["coordination"], MilestoneID: f.Values["milestone"], Scope: f.Values["scope"], Reason: f.Values["reason"], Evidence: string(body)})
 	}
 }

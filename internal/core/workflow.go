@@ -93,24 +93,61 @@ func workflowActor(ctx context.Context, c *sql.Conn, in WorkflowInput, coordinat
 		return "", Fail("SESSION_STOPPED", "session is stopped")
 	}
 	if coordinator {
-		var n int
-		e = c.QueryRowContext(ctx, `SELECT count(*) FROM sqlite_master WHERE type='table' AND name='team_runs'`).Scan(&n)
+		managed, e := requireOptionalCoordinatorTx(ctx, c, in.ProjectID, in.SessionID, in.CoordinationID)
 		if e != nil {
 			return "", e
 		}
-		if n == 0 {
-			return "", Fail("AUTHORITY_REQUIRED", "active team coordinator required")
-		}
-		e = c.QueryRowContext(ctx, `SELECT count(*) FROM team_runs WHERE project_id=? AND coordinator_session_id=? AND coordination_id=? AND coordination_id IS NOT NULL AND status NOT IN ('stopped','released')`, in.ProjectID, in.SessionID, in.CoordinationID).Scan(&n)
-		if e != nil {
-			return "", e
-		}
-		if n != 1 {
-			return "", Fail("AUTHORITY_REQUIRED", "active team coordination token required")
+		if !managed {
+			var authority string
+			e = c.QueryRowContext(ctx, `SELECT authority FROM workflow_policies WHERE project_id=?`, in.ProjectID).Scan(&authority)
+			if e == sql.ErrNoRows || (e == nil && authority != "local-user") {
+				return "", Fail("AUTHORITY_REQUIRED", "standing human workflow grant required")
+			}
+			if e != nil {
+				return "", e
+			}
+			sp, e := workflowSpec(ctx, c, in.ProjectID, in.TicketID)
+			if e != nil {
+				return "", e
+			}
+			if sp == nil || sp.ExecutionMode != "delegated" {
+				return "", Fail("AUTHORITY_REQUIRED", "ticket policy does not delegate execution")
+			}
 		}
 	}
 	return in.SessionID, nil
 }
+
+// requireOptionalCoordinatorTx never treats an unreconciled team as standalone.
+func requireOptionalCoordinatorTx(ctx context.Context, c *sql.Conn, project, session, token string) (bool, error) {
+	if e := validateProblemSession(ctx, c, project, session); e != nil {
+		return false, e
+	}
+	var id string
+	e := c.QueryRowContext(ctx, `SELECT id FROM team_runs WHERE project_id=? AND status<>'stopped'`, project).Scan(&id)
+	if e == sql.ErrNoRows {
+		var children int
+		if e = c.QueryRowContext(ctx, `SELECT count(*) FROM team_launches WHERE project_id=? AND session_id=?`, project, session).Scan(&children); e != nil {
+			return false, e
+		}
+		if children > 0 {
+			return false, Fail("AUTHORITY_REQUIRED", "historical managed child cannot use standalone authority")
+		}
+		return false, nil
+	}
+	if e != nil {
+		return false, e
+	}
+	r, e := readTeam(ctx, c, project, id)
+	if e != nil {
+		return true, e
+	}
+	if token == "" || r.CoordinationID != token || r.CoordinatorSessionID != session || r.Status == "stopping" || r.Status == "stopped" || r.Status == "released" {
+		return true, Fail("AUTHORITY_REQUIRED", "current coordinator token and usable team required")
+	}
+	return true, nil
+}
+
 func CreateWorkflowDraftTx(ctx context.Context, c *sql.Conn, project, session, title, body, parentID, kind string) (TicketRecord, error) {
 	var v TicketRecord
 	if strings.TrimSpace(title) == "" || strings.TrimSpace(body) == "" {
@@ -144,8 +181,11 @@ func CreateWorkflowDraftTx(ctx context.Context, c *sql.Conn, project, session, t
 		return v, e
 	}
 	nrows, _ := res.RowsAffected()
-	if nrows != 1 {
-		return v, Fail("WORKFLOW_DISABLED", "configure workflow before creating drafts")
+	if nrows == 0 {
+		v.State = "ready"
+		if _, e = c.ExecContext(ctx, `UPDATE tickets SET state='ready' WHERE id=?`, v.ID); e != nil {
+			return v, e
+		}
 	}
 	if _, e = c.ExecContext(ctx, `UPDATE ticket_metadata SET parent_id=?,kind=? WHERE ticket_id=?`, parent, kind, v.ID); e != nil {
 		return v, e
@@ -154,18 +194,8 @@ func CreateWorkflowDraftTx(ctx context.Context, c *sql.Conn, project, session, t
 	return v, e
 }
 func CheckWorkflowEligibilityTx(ctx context.Context, c *sql.Conn, p, id string) error {
-	v, e := workflowSpec(ctx, c, p, id)
-	if e != nil || v == nil {
-		return e
-	}
-	if v.Paused || v.BlockedReason != "" {
-		return Fail("WORK_PAUSED", "ticket is paused or blocked")
-	}
-	if v.PreparedRevision != v.SpecRevision || v.AuthorizedRevision != v.SpecRevision {
-		return Fail("NOT_AUTHORIZED", "current specification must be prepared and authorized")
-	}
 	var n int
-	e = c.QueryRowContext(ctx, `SELECT count(*) FROM sqlite_master WHERE name='retrospective_deferrals' AND type='table'`).Scan(&n)
+	e := c.QueryRowContext(ctx, `SELECT count(*) FROM sqlite_master WHERE name='retrospective_deferrals' AND type='table'`).Scan(&n)
 	if e != nil {
 		return e
 	}
@@ -177,6 +207,17 @@ func CheckWorkflowEligibilityTx(ctx context.Context, c *sql.Conn, p, id string) 
 			return Fail("DEFERRED", "ticket remains deferred")
 		}
 	}
+	v, e := workflowSpec(ctx, c, p, id)
+	if e != nil || v == nil {
+		return e
+	}
+	if v.Paused || v.BlockedReason != "" {
+		return Fail("WORK_PAUSED", "ticket is paused or blocked")
+	}
+	if v.PreparedRevision != v.SpecRevision || v.AuthorizedRevision != v.SpecRevision {
+		return Fail("NOT_AUTHORIZED", "current specification must be prepared and authorized")
+	}
+
 	return nil
 }
 func (s *Service) Workflow(ctx context.Context, r store.Request, op string, in WorkflowInput) (json.RawMessage, error) {
@@ -240,17 +281,17 @@ func (s *Service) Workflow(ctx context.Context, r store.Request, op string, in W
 			}
 			return workflowEvent(ctx, c, in, actor, op, in)
 		}
+		v, e := readTicket(ctx, c, in.ProjectID, in.TicketID)
+		if e != nil {
+			return nil, e
+		}
+		in.TicketID = v.ID
 		coordinator := op != "critique"
 		a, e := workflowActor(ctx, c, in, coordinator)
 		if e != nil {
 			return nil, e
 		}
 		actor = a
-		v, e := readTicket(ctx, c, in.ProjectID, in.TicketID)
-		if e != nil {
-			return nil, e
-		}
-		in.TicketID = v.ID
 		if v.Revision != in.ExpectedRevision {
 			return nil, Fail("REVISION_CONFLICT", "ticket revision changed")
 		}
@@ -367,6 +408,11 @@ func (s *Service) Workflow(ctx context.Context, r store.Request, op string, in W
 			_, e = c.ExecContext(ctx, `INSERT INTO workflow_critiques VALUES(?,?,?,?,?,?,?,?,?,?)`, id, in.ProjectID, v.ID, sp.SpecRevision, in.SessionID, ss.AgentID, in.ContextID, in.Significant, in.Body, Now())
 			if e != nil {
 				return nil, e
+			}
+			if in.Significant {
+				if e = InvalidateTicketPolicyTx(ctx, c, in.ProjectID, v.ID); e != nil {
+					return nil, e
+				}
 			}
 			in.CritiqueID = id
 		case "dispose":

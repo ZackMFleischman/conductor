@@ -7,6 +7,14 @@ import (
 )
 
 func validateWorkflowAcceptance(ctx context.Context, c *sql.Conn, in TicketInput, v TicketRecord) error {
+	return validateWorkflowDecision(ctx, c, in, v, true)
+}
+
+func validateWorkflowRejection(ctx context.Context, c *sql.Conn, in TicketInput, v TicketRecord) error {
+	return validateWorkflowDecision(ctx, c, in, v, false)
+}
+
+func validateWorkflowDecision(ctx context.Context, c *sql.Conn, in TicketInput, v TicketRecord, accepting bool) error {
 	sp, e := workflowSpec(ctx, c, in.ProjectID, v.ID)
 	if e != nil {
 		return e
@@ -14,8 +22,10 @@ func validateWorkflowAcceptance(ctx context.Context, c *sql.Conn, in TicketInput
 	if sp == nil {
 		return nil
 	}
-	if e = CheckWorkflowEligibilityTx(ctx, c, in.ProjectID, v.ID); e != nil {
-		return e
+	if accepting {
+		if e = CheckWorkflowEligibilityTx(ctx, c, in.ProjectID, v.ID); e != nil {
+			return e
+		}
 	}
 	if in.Validation == nil {
 		return Fail("VALIDATION_REQUIRED", "structured validation evidence required")
@@ -32,9 +42,11 @@ func validateWorkflowAcceptance(ctx context.Context, c *sql.Conn, in TicketInput
 	if strings.TrimSpace(d.Commit) == "" || strings.TrimSpace(d.Criteria) == "" || strings.TrimSpace(d.Evidence) == "" {
 		return Fail("VALIDATION_REQUIRED", "tested commit, criteria and evidence required")
 	}
-	for _, name := range sp.RequiredChecks {
-		if d.Checks[name] != "pass" {
-			return Fail("CHECKS_REQUIRED", "required named check missing or not pass: "+name)
+	if accepting {
+		for _, name := range sp.RequiredChecks {
+			if d.Checks[name] != "pass" {
+				return Fail("CHECKS_REQUIRED", "required named check missing or not pass: "+name)
+			}
 		}
 	}
 	switch sp.ValidationMode {

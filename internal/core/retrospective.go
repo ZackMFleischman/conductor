@@ -466,8 +466,8 @@ func (s *Service) DecideRetrospective(ctx context.Context, project, request stri
 				if e != nil {
 					return nil, e
 				}
-				if v.State != "draft" || v.Active {
-					return nil, Fail("INVALID_STATE", "only unclaimed draft remedies can be deferred")
+				if v.Active || (v.Workflow != nil && v.State != "draft") || (v.Workflow == nil && v.State != "ready") {
+					return nil, Fail("INVALID_STATE", "only unclaimed draft or ordinary ready remedies can be deferred")
 				}
 				var milestone string
 				e = c.QueryRowContext(ctx, "SELECT milestone_id FROM retrospective_deferrals WHERE project_id=? AND ticket_id=? AND released_at IS NULL", project, *linked).Scan(&milestone)
@@ -540,10 +540,10 @@ func retrospectiveRemedy(ctx context.Context, c *sql.Conn, project string, in Re
 		if e != nil {
 			return nil, e
 		}
-		if v.State != "draft" || v.Active {
-			return nil, Fail("INVALID_STATE", "explicit remedy must be an unclaimed draft")
+		if v.Active || (v.Workflow != nil && v.State != "draft") || (v.Workflow == nil && v.State != "ready") {
+			return nil, Fail("INVALID_STATE", "explicit remedy must be an unclaimed draft or ordinary ready ticket")
 		}
-		sp, e := workflowSpec(ctx, c, project, v.ID)
+		sp, e := ticketMetadata(ctx, c, project, v.ID)
 		if e != nil {
 			return nil, e
 		}
@@ -567,6 +567,8 @@ type RetrospectiveMilestoneInput struct {
 	CoordinationID string `json:"coordination_id"`
 	MilestoneID    string `json:"milestone_id"`
 	Evidence       string `json:"evidence"`
+	Scope          string `json:"scope,omitempty"`
+	Reason         string `json:"reason,omitempty"`
 }
 
 func (s *Service) ReleaseRetrospectiveMilestone(ctx context.Context, project, request string, in RetrospectiveMilestoneInput) (json.RawMessage, error) {
@@ -577,11 +579,20 @@ func (s *Service) ReleaseRetrospectiveMilestone(ctx context.Context, project, re
 		return nil, err
 	}
 	return s.Mutate(ctx, project, request, "retrospective.release-milestone", in.SessionID, in, func(c *sql.Conn) (json.RawMessage, error) {
-		if _, err := workflowActor(ctx, c, WorkflowInput{ProjectID: project, SessionID: in.SessionID, CoordinationID: in.CoordinationID}, true); err != nil {
+		managed, err := requireOptionalCoordinatorTx(ctx, c, project, in.SessionID, in.CoordinationID)
+		if err != nil {
 			return nil, err
 		}
+		if !managed {
+			if err = validateProblemText("scope", in.Scope, true, 65536); err != nil {
+				return nil, err
+			}
+			if err = validateProblemText("reason", in.Reason, true, 65536); err != nil {
+				return nil, err
+			}
+		}
 		var count int
-		err := c.QueryRowContext(ctx, `SELECT count(*) FROM retrospective_deferrals d JOIN claims cl ON cl.project_id=d.project_id AND cl.ticket_id=d.ticket_id WHERE d.project_id=? AND d.milestone_id=? AND d.released_at IS NULL AND cl.released_at IS NULL`, project, in.MilestoneID).Scan(&count)
+		err = c.QueryRowContext(ctx, `SELECT count(*) FROM retrospective_deferrals d JOIN claims cl ON cl.project_id=d.project_id AND cl.ticket_id=d.ticket_id WHERE d.project_id=? AND d.milestone_id=? AND d.released_at IS NULL AND cl.released_at IS NULL`, project, in.MilestoneID).Scan(&count)
 		if err != nil {
 			return nil, err
 		}
@@ -593,7 +604,7 @@ func (s *Service) ReleaseRetrospectiveMilestone(ctx context.Context, project, re
 		if _, err = c.ExecContext(ctx, `UPDATE workflow_ticket_specs SET prepared_revision=0,authorized_revision=0 WHERE project_id=? AND ticket_id IN(SELECT ticket_id FROM retrospective_deferrals WHERE project_id=? AND milestone_id=? AND released_at IS NULL)`, project, project, in.MilestoneID); err != nil {
 			return nil, err
 		}
-		if _, err = c.ExecContext(ctx, `UPDATE tickets SET state='draft',revision=revision+1,updated_at=? WHERE project_id=? AND id IN(SELECT ticket_id FROM retrospective_deferrals WHERE project_id=? AND milestone_id=? AND released_at IS NULL)`, Now(), project, project, in.MilestoneID); err != nil {
+		if _, err = c.ExecContext(ctx, `UPDATE tickets SET state=CASE WHEN EXISTS(SELECT 1 FROM workflow_ticket_specs s WHERE s.ticket_id=tickets.id) THEN 'draft' ELSE 'ready' END,revision=revision+1,updated_at=? WHERE project_id=? AND id IN(SELECT ticket_id FROM retrospective_deferrals WHERE project_id=? AND milestone_id=? AND released_at IS NULL)`, Now(), project, project, in.MilestoneID); err != nil {
 			return nil, err
 		}
 		result, err := c.ExecContext(ctx, "UPDATE retrospective_deferrals SET released_at=? WHERE project_id=? AND milestone_id=? AND released_at IS NULL", Now(), project, in.MilestoneID)
@@ -604,7 +615,7 @@ func (s *Service) ReleaseRetrospectiveMilestone(ctx context.Context, project, re
 		if err != nil {
 			return nil, err
 		}
-		v := map[string]any{"milestone_id": in.MilestoneID, "released_tickets": n, "evidence": in.Evidence}
+		v := map[string]any{"milestone_id": in.MilestoneID, "released_tickets": n, "evidence": in.Evidence, "scope": in.Scope, "reason": in.Reason}
 		if err = retrospectiveEvent(ctx, c, project, in.SessionID, "retrospective.release-milestone", v); err != nil {
 			return nil, err
 		}

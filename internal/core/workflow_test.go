@@ -219,8 +219,10 @@ func TestWorkflowGraphCyclesAndPolicyFencing(t *testing.T) {
 	}
 	_, e = f.s.Workflow(f.ctx, f.req(), "configure", WorkflowInput{ProjectID: f.p, SessionID: f.worker, ValidationMode: "automated", Reason: "weaken"})
 	workflowFail(t, "AUTHORITY_REQUIRED", e)
-	_, e = f.s.Workflow(f.ctx, f.req(), "prepare", WorkflowInput{ProjectID: f.p, TicketID: b.ID, SessionID: f.worker, ExpectedRevision: 1, Body: "self approve"})
-	workflowFail(t, "AUTHORITY_REQUIRED", e)
+	_, e = f.s.Workflow(f.ctx, f.req(), "prepare", WorkflowInput{ProjectID: f.p, TicketID: b.ID, SessionID: f.worker, ExpectedRevision: 1, Body: "within delegated policy"})
+	if e != nil {
+		t.Fatal(e)
+	}
 }
 func TestWorkflowBlockReleaseAndAutomatedEvidence(t *testing.T) {
 	f := newWorkflowFixture(t, "automated")
