@@ -1,0 +1,1 @@
+Human QA: inspect docs/portal/api-contract.md and confirm the proposal does not assert an installed API or map core lifecycle implicitly. From web/portal run npm ci, npm test, npx tsc --noEmit. Confirm fictional DEMO keys and fixture source kind. Do not treat these checks as live integration evidence. Core coordinator reviews CON-13 separately. No merge performed.

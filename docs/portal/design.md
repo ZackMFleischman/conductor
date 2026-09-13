@@ -21,3 +21,9 @@ All edited files and package configuration stay in web/portal/** or docs/portal/
 ## Verification
 
 Run `npm test` and `npm run build` from web/portal. Browser QA checks all five lanes, descriptions, explicit assignment/unassigned text, blockers, fixture labeling, case-insensitive search, combined assignee filtering, clear filters, empty results, keyboard navigation and a narrow viewport. Error/loading behavior is also exercised with injected sources in component tests. Exact source commits and reproducible manual QA belong in verification.md and tracker submissions.
+
+## Browser feedback revision
+
+The user found the first header too spacious and vertical. Revised layout places Work board, Fixture data and summary counts on one row, uses a short source notice, tightens filter/card spacing and removes artificial lane minimum heights. Full descriptions and blocker explanations remain visible. At 1440px, the board now starts around y=192px; the original started around y=397px. This compact design supersedes the earlier separate project eyebrow and full-width notice banner.
+
+Second user feedback removed the redundant fixture explanation and result-count line. Fixture/read-only badges remain. Search and assignee controls now use a 32px compact row with accessible names; counts stay only in the summary and lane headings.
