@@ -25,6 +25,46 @@ beforeEach(() => {
 });
 afterEach(() => { vi.unstubAllGlobals(); vi.useRealTimers(); });
 
+it('highlights only new or changed live tickets, renews the cue, and clears it', async () => {
+  render(<LivePortal />);
+  await screen.findByText('First');
+  const card = () => screen.getByRole('article', { name: /First|Updated/ });
+  expect(card()).not.toHaveAttribute('data-live-updated', 'true');
+  vi.useFakeTimers();
+  await act(async () => { Stream.all[0].emit('board.changed'); });
+  expect(card()).not.toHaveAttribute('data-live-updated', 'true');
+  const changed = snapshot('a', 'Updated');
+  changed.tickets[0].status = 'in_progress';
+  changed.tickets.push({ ...changed.tickets[0], id: 'new', key: 'A-2', title: 'New ticket' });
+  fetcher.mockImplementation(async () => response(changed));
+  await act(async () => { Stream.all[0].emit('board.changed'); });
+  expect(card()).toHaveAttribute('data-live-updated', 'true');
+  expect(screen.getByRole('article', { name: 'New ticket' })).toHaveAttribute('data-live-updated', 'true');
+  await act(async () => { vi.advanceTimersByTime(1000); });
+  changed.tickets[0].description = 'Another update';
+  await act(async () => { Stream.all[0].emit('board.changed'); });
+  await act(async () => { vi.advanceTimersByTime(1000); });
+  expect(card()).toHaveAttribute('data-live-updated', 'true');
+  expect(screen.getByRole('article', { name: 'New ticket' })).not.toHaveAttribute('data-live-updated', 'true');
+  await act(async () => { vi.advanceTimersByTime(2000); });
+  expect(card()).not.toHaveAttribute('data-live-updated', 'true');
+});
+
+it('keeps the project in the heading and tab title across project switches and invalid selections', async () => {
+  const user = userEvent.setup();
+  render(<LivePortal />);
+  await screen.findByRole('heading', { level: 1, name: 'a · Work board' });
+  expect(document.title).toBe('a · Conductor');
+  await user.selectOptions(screen.getByRole('combobox', { name: 'Project' }), 'b');
+  await screen.findByRole('heading', { level: 1, name: 'b · Work board' });
+  expect(document.title).toBe('b · Conductor');
+  await act(async () => {
+    history.pushState(null, '', '/?project=missing');
+    window.dispatchEvent(new PopStateEvent('popstate'));
+  });
+  expect(document.title).toBe('Conductor');
+});
+
 it('initializes the selected project from the URL and preserves unrelated URL state', async () => {
   history.replaceState(null, '', '/?project=b&keep=1#anchor');
   render(<LivePortal />);

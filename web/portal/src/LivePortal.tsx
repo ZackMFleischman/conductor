@@ -66,7 +66,8 @@ export function LivePortal() {
     </NativeSelect>
   </FormControl> : undefined;
   const source = useMemo(() => selected ? createLiveBoardSource(selected) : undefined, [selected]);
-  if (source && projects) return <App key={selected} source={source} projectControl={
+  useEffect(() => { if (!source) document.title = 'Conductor'; }, [source]);
+  if (source && projects) return <App key={selected} source={source} projectName={projects.find(project => project.id === selected)?.name} projectControl={
     projectControl
   } />;
   return <ThemeProvider theme={theme}><CssBaseline /><Box component="main" sx={{ p: 3 }}>

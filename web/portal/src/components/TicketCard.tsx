@@ -14,10 +14,16 @@ export const statusMeta: Record<TicketStatus, { label: string; color: string; ti
   done: { label: 'Done', color: '#287661', tint: '#e8f3ed' },
 };
 
-export function TicketCard({ ticket, query, onGroupFilter }: { ticket: BoardTicket; query: string; onGroupFilter: (value: string) => void }) {
+export function TicketCard({ ticket, query, onGroupFilter, updated = false }: { ticket: BoardTicket; query: string; onGroupFilter: (value: string) => void; updated?: boolean }) {
   const meta = statusMeta[ticket.status];
   const blockers = ticket.blockers.length ? ticket.blockers : ticket.status === 'blocked' ? [{ reason: 'Blocker details unavailable.' }] : [];
-  return <Paper component="article" variant="outlined" aria-labelledby={`ticket-${ticket.id}`} sx={{ p: 1, boxShadow: '0 2px 3px #25385804', overflowWrap: 'anywhere' }}>
+  return <Paper component="article" variant="outlined" aria-labelledby={`ticket-${ticket.id}`} data-live-updated={updated || undefined} sx={{
+    p: 1, boxShadow: '0 2px 3px #25385804', overflowWrap: 'anywhere',
+    bgcolor: updated ? '#fff0b3' : 'background.paper',
+    borderColor: updated ? '#d69e24' : 'divider',
+    transition: updated ? 'none' : 'background-color 800ms ease-out, border-color 800ms ease-out',
+    '@media (prefers-reduced-motion: reduce)': { transition: 'none' },
+  }}>
     <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between', gap: 0.75, mb: 0.5 }}>
       <Typography variant="caption" sx={{ fontFamily: 'Consolas, monospace', color: 'text.secondary', letterSpacing: '.02em' }}><HighlightedText text={ticket.key} query={query} /></Typography>
       <Chip size="small" label={meta.label} sx={{ height: 18, fontSize: '0.66rem', borderRadius: 1, bgcolor: meta.tint, color: meta.color }} />

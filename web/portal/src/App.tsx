@@ -11,7 +11,7 @@ import { theme } from './theme';
 
 type LoadState = { status: 'loading' | 'error' | 'ready'; board?: BoardSnapshot };
 
-export function App({ source, projectControl }: { source: BoardSource; projectControl?: ReactNode }) {
+export function App({ source, projectControl, projectName }: { source: BoardSource; projectControl?: ReactNode; projectName?: string }) {
   const [state, setState] = useState<LoadState>({ status: 'loading' });
   const [attempt, setAttempt] = useState(0);
   const [query, setQuery] = useState('');
@@ -20,11 +20,15 @@ export function App({ source, projectControl }: { source: BoardSource; projectCo
   const [connection, setConnection] = useState<ConnectionStatus>('connecting');
   const [refreshing, setRefreshing] = useState(false);
   const [stale, setStale] = useState(false);
+  const [updatedTickets, setUpdatedTickets] = useState<ReadonlySet<string>>(new Set());
   useEffect(() => {
     const controller = new AbortController();
     setState({ status: 'loading' });
     setConnection('connecting');
     setStale(false);
+    setUpdatedTickets(new Set());
+    let previousTickets: Map<string, string> | undefined;
+    const highlightTimers = new Map<string, ReturnType<typeof setTimeout>>();
     let transport: ConnectionStatus = 'connecting';
     let connectionGeneration = 0;
     let running = false;
@@ -40,6 +44,25 @@ export function App({ source, projectControl }: { source: BoardSource; projectCo
         try {
           const board = await source.load(controller.signal);
           if (!controller.signal.aborted && !pending && generation === connectionGeneration) {
+            const nextTickets = new Map(board.tickets.map(ticket => [ticket.id, JSON.stringify(ticket)]));
+            if (previousTickets && source.kind === 'live') {
+              const changed = [...nextTickets].filter(([id, value]) => previousTickets!.get(id) !== value).map(([id]) => id);
+              if (changed.length) {
+                setUpdatedTickets(previous => new Set([...previous, ...changed]));
+                for (const id of changed) {
+                  clearTimeout(highlightTimers.get(id));
+                  highlightTimers.set(id, setTimeout(() => {
+                    highlightTimers.delete(id);
+                    setUpdatedTickets(previous => {
+                      const next = new Set(previous);
+                      next.delete(id);
+                      return next;
+                    });
+                  }, 1500));
+                }
+              }
+            }
+            previousTickets = nextTickets;
             setState({ status: 'ready', board });
             if (transport === 'connected') setStale(false);
           }
@@ -62,10 +85,19 @@ export function App({ source, projectControl }: { source: BoardSource; projectCo
         }
       });
     } catch { setConnection('error'); setStale(true); }
-    return () => { controller.abort(); unsubscribe?.(); };
+    return () => {
+      controller.abort();
+      unsubscribe?.();
+      highlightTimers.forEach(timer => clearTimeout(timer));
+    };
   }, [source, attempt]);
 
   const board = state.board;
+  const displayedProjectName = board?.project.name ?? projectName;
+  useEffect(() => {
+    document.title = displayedProjectName ? `${displayedProjectName} · Conductor` : 'Conductor';
+    return () => { document.title = 'Conductor'; };
+  }, [displayedProjectName]);
   const tickets = board?.tickets ?? [];
   const term = query.trim();
   const filtered = tickets.filter(ticket => {
@@ -86,14 +118,14 @@ export function App({ source, projectControl }: { source: BoardSource; projectCo
           <Box sx={{ width: 28, height: 28, borderRadius: 1.25, bgcolor: '#244f47', color: '#fff', display: 'grid', placeItems: 'center' }}><AccountTreeOutlined sx={{ fontSize: 19 }} /></Box>
           <Typography sx={{ fontWeight: 700, letterSpacing: '-.035em', fontSize: '1.15rem' }}>conductor</Typography>
           <Typography sx={{ color: '#c6cdd6', pl: 1, display: { xs: 'none', sm: 'block' } }}>/</Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ display: { xs: 'none', sm: 'block' } }}>{board?.project.name ?? 'Conductor'}</Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ display: { xs: 'none', sm: 'block' } }}>{displayedProjectName ?? 'Conductor'}</Typography>
         </Stack>
         <Chip icon={<VisibilityOutlined />} label="Read only" size="small" variant="outlined" sx={{ borderColor: '#dce2e8', color: 'text.secondary', fontSize: '0.72rem' }} />
       </Stack>
     </Box>
     <Box component="main" sx={{ maxWidth: 1800, mx: 'auto', px: { xs: 2, md: 3 }, pt: 2, pb: 2 }}>
       <Stack direction="row" sx={{ alignItems: 'center', flexWrap: 'wrap', gap: 1.5, mb: 1.5 }}>
-        <Typography component="h1" variant="h1">Work board</Typography>
+        <Typography component="h1" variant="h1" sx={{ overflowWrap: 'anywhere' }}>{displayedProjectName ? `${displayedProjectName} · Work board` : 'Work board'}</Typography>
         <Chip icon={<ScienceOutlined />} label={source.kind === 'fixture' ? 'Fixture data' : 'Live data'} size="small" sx={{ bgcolor: '#e1eee7', color: '#285d4f', fontSize: '0.7rem' }} />
         {projectControl}
         {source.subscribe && <Typography role="status" variant="caption" color="text.secondary">{connection === 'disconnected' || connection === 'error' ? 'Disconnected' : refreshing ? 'Refreshing…' : connection === 'connecting' ? 'Connecting…' : 'Connected'}</Typography>}
@@ -124,7 +156,7 @@ export function App({ source, projectControl }: { source: BoardSource; projectCo
           <Typography component="h2" variant="h3">{tickets.length === 0 ? 'No tickets yet' : 'No tickets match these filters'}</Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>{tickets.length === 0 ? 'Tickets will appear here when the source has work to show.' : 'Try another search or clear the filters to see all work.'}</Typography>
         </Paper>}
-        <KanbanBoard tickets={filtered} query={term} onGroupFilter={setGroup} />
+        <KanbanBoard tickets={filtered} query={term} onGroupFilter={setGroup} updatedTickets={updatedTickets} />
         <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>Assignment shows ownership, not an active claim. This board does not change ticket state.</Typography>
       </>}
     </Box>

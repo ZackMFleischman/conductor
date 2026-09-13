@@ -8,7 +8,7 @@ import { App } from './App';
 describe('read-only work board', () => {
   it('shows all lanes, complete descriptions, ownership and explicit blockers', async () => {
     render(<App source={fixtureBoardSource} />);
-    expect(await screen.findByRole('heading', { name: 'Work board' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: `${(await fixtureBoardSource.load()).project.name} · Work board` })).toBeInTheDocument();
     for (const lane of ['Ready', 'In progress', 'Blocked', 'Review', 'Done']) {
       expect(await screen.findByRole('region', { name: lane })).toBeInTheDocument();
     }
