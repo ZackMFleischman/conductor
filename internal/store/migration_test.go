@@ -31,14 +31,14 @@ func TestLegacyMigrationPreservesData(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer s.DB.Close()
-	if err = s.DB.QueryRow("PRAGMA user_version").Scan(&version); err != nil || version != 2 {
+	if err = s.DB.QueryRow("PRAGMA user_version").Scan(&version); err != nil || version != SchemaVersion {
 		t.Fatalf("version %d: %v", version, err)
 	}
 	var prefix string
 	if err = s.DB.QueryRow("SELECT prefix FROM projects WHERE id='legacy'").Scan(&prefix); err != nil || prefix != "OLD" {
 		t.Fatalf("lost legacy project: %q %v", prefix, err)
 	}
-	backups, _ := filepath.Glob(p + ".pre-v2-*")
+	backups, _ := filepath.Glob(p + ".pre-v3-*")
 	if len(backups) != 1 {
 		t.Fatalf("expected consistent pre-migration backup, got %v", backups)
 	}

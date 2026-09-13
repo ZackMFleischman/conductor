@@ -39,7 +39,7 @@ func Ticket(ctx context.Context, env Env, args []string) (any, error) {
 		values = []string{"expect-revision", "request", "session", "validation-file"}
 		bools = append(bools, "human")
 	case "reject":
-		values = []string{"expect-revision", "reason", "request"}
+		values = []string{"expect-revision", "reason", "request", "session", "validation-file"}
 		bools = append(bools, "human")
 	case "release", "block":
 		values = []string{"session", "claim", "expect-revision", "reason", "request"}
@@ -52,7 +52,7 @@ func Ticket(ctx context.Context, env Env, args []string) (any, error) {
 		return nil, e
 	}
 	if f.Bools["help"] {
-		return map[string]any{"command": "ticket " + op, "value_flags": values, "boolean_flags": bools, "limits": "title: 300 Unicode characters; each UTF-8 body: 256 KiB; request: 1–200 bytes; list: 1–100 (default 20)", "ownership": "note/submit/owner release require session and claim; human accept/reject/recovery require --human; all changes except notes require --expect-revision"}, nil
+		return map[string]any{"command": "ticket " + op, "value_flags": values, "boolean_flags": bools, "limits": "title: 300 Unicode characters; each UTF-8 body: 256 KiB; request: 1–200 bytes; list: 1–100 (default 20)", "ownership": "note/submit/owner release require session and claim; accept/reject require a live session or --human; legacy tickets require --human; all changes except notes require --expect-revision"}, nil
 	}
 	in := core.TicketInput{Commit: f.Values["commit"], Title: f.Values["title"], AssignedAgentID: f.Values["assigned-to"], SessionID: f.Values["session"], ClaimID: f.Values["claim"], Reason: f.Values["reason"], Human: f.Bools["human"]}
 	if op == "create" || op == "list" {
@@ -121,7 +121,7 @@ func Ticket(ctx context.Context, env Env, args []string) (any, error) {
 			return nil, e
 		}
 	}
-	if op == "accept" && f.Values["validation-file"] != "" {
+	if (op == "accept" || op == "reject") && f.Values["validation-file"] != "" {
 		d, err := readWorkflowBody(env, f.Values["validation-file"])
 		if err != nil {
 			return nil, err

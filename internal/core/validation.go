@@ -12,9 +12,6 @@ func validateWorkflowAcceptance(ctx context.Context, c *sql.Conn, in TicketInput
 		return e
 	}
 	if sp == nil {
-		if !in.Human {
-			return Fail("HUMAN_REQUIRED", "legacy ticket requires explicit human acceptance")
-		}
 		return nil
 	}
 	if e = CheckWorkflowEligibilityTx(ctx, c, in.ProjectID, v.ID); e != nil {
@@ -26,7 +23,7 @@ func validateWorkflowAcceptance(ctx context.Context, c *sql.Conn, in TicketInput
 	d := in.Validation
 	var submitted string
 	var submittedRevision int
-	if e = c.QueryRowContext(ctx, `SELECT submitted_commit,submitted_spec_revision FROM workflow_ticket_specs WHERE ticket_id=?`, v.ID).Scan(&submitted, &submittedRevision); e != nil {
+	if e = c.QueryRowContext(ctx, `SELECT submitted_commit,submitted_spec_revision FROM ticket_metadata WHERE ticket_id=?`, v.ID).Scan(&submitted, &submittedRevision); e != nil {
 		return e
 	}
 	if d.Commit != submitted || submittedRevision != sp.SpecRevision {
@@ -40,7 +37,6 @@ func validateWorkflowAcceptance(ctx context.Context, c *sql.Conn, in TicketInput
 			return Fail("CHECKS_REQUIRED", "required named check missing or not pass: "+name)
 		}
 	}
-	var session, agent any
 	switch sp.ValidationMode {
 	case "human":
 		if !in.Human {
@@ -65,8 +61,6 @@ func validateWorkflowAcceptance(ctx context.Context, c *sql.Conn, in TicketInput
 		if n > 0 {
 			return Fail("NOT_INDEPENDENT", "validator identity participated in an implementation attempt")
 		}
-		session = in.SessionID
-		agent = ss.AgentID
 	case "automated":
 		if len(sp.RequiredChecks) == 0 {
 			return Fail("CHECKS_REQUIRED", "automated validation requires named checks")
@@ -79,12 +73,9 @@ func validateWorkflowAcceptance(ctx context.Context, c *sql.Conn, in TicketInput
 			if ss.DeclaredState == "stopped" {
 				return Fail("SESSION_STOPPED", "session is stopped")
 			}
-			session = in.SessionID
-			agent = ss.AgentID
 		}
 	default:
 		return Fail("INVALID_POLICY", "unknown result validation mode")
 	}
-	_, e = c.ExecContext(ctx, `INSERT INTO workflow_validations VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`, UUID(), in.ProjectID, v.ID, sp.SpecRevision, sp.ValidationMode, session, agent, d.ContextID, d.Commit, d.Criteria, d.Evidence, string(JSON(d.Checks)), Now())
-	return e
+	return nil
 }

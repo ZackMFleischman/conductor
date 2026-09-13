@@ -60,7 +60,15 @@ func workflowSpec(ctx context.Context, c ticketReader, p, id string) (*WorkflowS
 	}
 	v := &WorkflowSpec{}
 	var checks string
-	e := c.QueryRowContext(ctx, `SELECT spec_revision,parent_id,kind,validation_mode,required_checks,policy_revision,execution_mode,plan_review,prepared_revision,authorized_revision,paused,blocked_reason FROM workflow_ticket_specs WHERE project_id=? AND ticket_id=?`, p, id).Scan(&v.SpecRevision, &v.ParentID, &v.Kind, &v.ValidationMode, &checks, &v.PolicyRevision, &v.ExecutionMode, &v.PlanReview, &v.PreparedRevision, &v.AuthorizedRevision, &v.Paused, &v.BlockedReason)
+	var version int
+	if e := c.QueryRowContext(ctx, "PRAGMA user_version").Scan(&version); e != nil {
+		return nil, e
+	}
+	query := `SELECT spec_revision,parent_id,kind,validation_mode,required_checks,policy_revision,execution_mode,plan_review,prepared_revision,authorized_revision,paused,blocked_reason FROM workflow_ticket_specs WHERE project_id=? AND ticket_id=?`
+	if version >= 3 {
+		query = `SELECT m.spec_revision,m.parent_id,m.kind,s.validation_mode,s.required_checks,s.policy_revision,s.execution_mode,s.plan_review,s.prepared_revision,s.authorized_revision,s.paused,m.blocked_reason FROM workflow_ticket_specs s JOIN ticket_metadata m ON m.ticket_id=s.ticket_id WHERE s.project_id=? AND s.ticket_id=?`
+	}
+	e := c.QueryRowContext(ctx, query, p, id).Scan(&v.SpecRevision, &v.ParentID, &v.Kind, &v.ValidationMode, &checks, &v.PolicyRevision, &v.ExecutionMode, &v.PlanReview, &v.PreparedRevision, &v.AuthorizedRevision, &v.Paused, &v.BlockedReason)
 	if e == sql.ErrNoRows {
 		return nil, nil
 	}
@@ -131,7 +139,7 @@ func CreateWorkflowDraftTx(ctx context.Context, c *sql.Conn, project, session, t
 		}
 		parent = p.ID
 	}
-	res, e := c.ExecContext(ctx, `INSERT INTO workflow_ticket_specs(ticket_id,project_id,parent_id,kind,validation_mode,required_checks,policy_revision,execution_mode,plan_review) SELECT ?,?,?,?,validation_mode,required_checks,revision,execution_mode,plan_review FROM workflow_policies WHERE project_id=?`, v.ID, project, parent, kind, project)
+	res, e := c.ExecContext(ctx, `INSERT INTO workflow_ticket_specs(ticket_id,project_id,validation_mode,required_checks,policy_revision,execution_mode,plan_review) SELECT ?,?,validation_mode,required_checks,revision,execution_mode,plan_review FROM workflow_policies WHERE project_id=?`, v.ID, project, project)
 	if e != nil {
 		return v, e
 	}
@@ -139,7 +147,10 @@ func CreateWorkflowDraftTx(ctx context.Context, c *sql.Conn, project, session, t
 	if nrows != 1 {
 		return v, Fail("WORKFLOW_DISABLED", "configure workflow before creating drafts")
 	}
-	_, e = c.ExecContext(ctx, `INSERT INTO workflow_versions VALUES(?,?,?,?,?,?,?)`, UUID(), project, v.ID, 1, session, string(JSON(v)), Now())
+	if _, e = c.ExecContext(ctx, `UPDATE ticket_metadata SET parent_id=?,kind=? WHERE ticket_id=?`, parent, kind, v.ID); e != nil {
+		return v, e
+	}
+	_, e = c.ExecContext(ctx, `INSERT INTO ticket_versions VALUES(?,?,?,?,?,?,?)`, UUID(), project, v.ID, 1, session, string(JSON(v)), Now())
 	return v, e
 }
 func CheckWorkflowEligibilityTx(ctx context.Context, c *sql.Conn, p, id string) error {
@@ -154,13 +165,6 @@ func CheckWorkflowEligibilityTx(ctx context.Context, c *sql.Conn, p, id string) 
 		return Fail("NOT_AUTHORIZED", "current specification must be prepared and authorized")
 	}
 	var n int
-	e = c.QueryRowContext(ctx, `SELECT count(*) FROM workflow_dependencies d JOIN tickets t ON t.id=d.depends_on WHERE d.project_id=? AND d.ticket_id=? AND t.state<>'done'`, p, id).Scan(&n)
-	if e != nil {
-		return e
-	}
-	if n > 0 {
-		return Fail("DEPENDENCY_BLOCKED", "prerequisites are not done")
-	}
 	e = c.QueryRowContext(ctx, `SELECT count(*) FROM sqlite_master WHERE name='retrospective_deferrals' AND type='table'`).Scan(&n)
 	if e != nil {
 		return e
@@ -288,7 +292,7 @@ func (s *Service) Workflow(ctx context.Context, r store.Request, op string, in W
 				}
 				parent = p.ID
 				var n int
-				e = c.QueryRowContext(ctx, `WITH RECURSIVE ancestors(id) AS(SELECT ? UNION SELECT s.parent_id FROM workflow_ticket_specs s JOIN ancestors a ON s.ticket_id=a.id WHERE s.parent_id IS NOT NULL) SELECT count(*) FROM ancestors WHERE id=?`, p.ID, v.ID).Scan(&n)
+				e = c.QueryRowContext(ctx, `WITH RECURSIVE ancestors(id) AS(SELECT ? UNION SELECT s.parent_id FROM ticket_metadata s JOIN ancestors a ON s.ticket_id=a.id WHERE s.parent_id IS NOT NULL) SELECT count(*) FROM ancestors WHERE id=?`, p.ID, v.ID).Scan(&n)
 				if e != nil {
 					return nil, e
 				}
@@ -296,7 +300,7 @@ func (s *Service) Workflow(ctx context.Context, r store.Request, op string, in W
 					return nil, Fail("CYCLE", "parent cycle")
 				}
 			}
-			if _, e = c.ExecContext(ctx, `DELETE FROM workflow_dependencies WHERE ticket_id=?`, v.ID); e != nil {
+			if _, e = c.ExecContext(ctx, `DELETE FROM ticket_dependencies WHERE ticket_id=?`, v.ID); e != nil {
 				return nil, e
 			}
 			for _, dep := range in.Dependencies {
@@ -305,37 +309,35 @@ func (s *Service) Workflow(ctx context.Context, r store.Request, op string, in W
 					return nil, e
 				}
 				var n int
-				e = c.QueryRowContext(ctx, `WITH RECURSIVE deps(id) AS(SELECT ? UNION SELECT d.depends_on FROM workflow_dependencies d JOIN deps a ON d.ticket_id=a.id) SELECT count(*) FROM deps WHERE id=?`, d.ID, v.ID).Scan(&n)
+				e = c.QueryRowContext(ctx, `WITH RECURSIVE deps(id) AS(SELECT ? UNION SELECT d.depends_on FROM ticket_dependencies d JOIN deps a ON d.ticket_id=a.id) SELECT count(*) FROM deps WHERE id=?`, d.ID, v.ID).Scan(&n)
 				if e != nil {
 					return nil, e
 				}
 				if n > 0 {
 					return nil, Fail("CYCLE", "dependency cycle")
 				}
-				if _, e = c.ExecContext(ctx, `INSERT INTO workflow_dependencies VALUES(?,?,?)`, in.ProjectID, v.ID, d.ID); e != nil {
+				if _, e = c.ExecContext(ctx, `INSERT INTO ticket_dependencies VALUES(?,?,?)`, in.ProjectID, v.ID, d.ID); e != nil {
 					return nil, e
 				}
 			}
 			if in.Kind == "" {
 				in.Kind = sp.Kind
 			}
-			_, e = c.ExecContext(ctx, `UPDATE workflow_ticket_specs SET spec_revision=spec_revision+1,parent_id=?,kind=?,validation_mode=?,required_checks=? WHERE ticket_id=?`, parent, in.Kind, in.ValidationMode, string(JSON(in.RequiredChecks)), v.ID)
+			_, e = c.ExecContext(ctx, `UPDATE ticket_metadata SET spec_revision=spec_revision+1,parent_id=?,kind=? WHERE ticket_id=?`, parent, in.Kind, v.ID)
 			if e != nil {
+				return nil, e
+			}
+			if _, e = c.ExecContext(ctx, `UPDATE workflow_ticket_specs SET validation_mode=?,required_checks=? WHERE ticket_id=?`, in.ValidationMode, string(JSON(in.RequiredChecks)), v.ID); e != nil {
 				return nil, e
 			}
 			_, e = c.ExecContext(ctx, `UPDATE tickets SET title=?,body=? WHERE id=?`, in.Title, in.Body, v.ID)
 			if e != nil {
 				return nil, e
 			}
-			_, e = c.ExecContext(ctx, `WITH RECURSIVE affected(id) AS(SELECT ? UNION SELECT d.ticket_id FROM workflow_dependencies d JOIN affected a ON d.depends_on=a.id) UPDATE workflow_ticket_specs SET prepared_revision=0,authorized_revision=0,paused=CASE WHEN EXISTS(SELECT 1 FROM claims WHERE claims.ticket_id=workflow_ticket_specs.ticket_id AND released_at IS NULL) THEN 1 ELSE 0 END WHERE ticket_id IN(SELECT id FROM affected)`, v.ID)
-			if e != nil {
+			if e = InvalidateTicketPolicyTx(ctx, c, in.ProjectID, v.ID); e != nil {
 				return nil, e
 			}
-			_, e = c.ExecContext(ctx, `WITH RECURSIVE affected(id) AS(SELECT ? UNION SELECT d.ticket_id FROM workflow_dependencies d JOIN affected a ON d.depends_on=a.id) UPDATE tickets SET state=CASE WHEN state IN('ready','review','done') THEN 'draft' ELSE state END,revision=revision+CASE WHEN id=? THEN 0 ELSE 1 END,updated_at=? WHERE project_id=? AND id IN(SELECT id FROM affected)`, v.ID, v.ID, Now(), in.ProjectID)
-			if e != nil {
-				return nil, e
-			}
-			_, e = c.ExecContext(ctx, `INSERT INTO workflow_versions VALUES(?,?,?,?,?,?,?)`, UUID(), in.ProjectID, v.ID, sp.SpecRevision+1, actor, string(JSON(in)), Now())
+			_, e = c.ExecContext(ctx, `INSERT INTO ticket_versions VALUES(?,?,?,?,?,?,?)`, UUID(), in.ProjectID, v.ID, sp.SpecRevision+1, actor, string(JSON(in)), Now())
 			if e != nil {
 				return nil, e
 			}
@@ -355,7 +357,7 @@ func (s *Service) Workflow(ctx context.Context, r store.Request, op string, in W
 			if n > 0 {
 				return nil, Fail("NOT_INDEPENDENT", "implementer cannot critique own work")
 			}
-			if e = c.QueryRowContext(ctx, `SELECT count(*) FROM workflow_versions v JOIN sessions s ON s.id=v.actor_id WHERE v.ticket_id=? AND s.agent_id=?`, v.ID, ss.AgentID).Scan(&n); e != nil {
+			if e = c.QueryRowContext(ctx, `SELECT count(*) FROM ticket_versions v JOIN sessions s ON s.id=v.actor_id WHERE v.ticket_id=? AND s.agent_id=?`, v.ID, ss.AgentID).Scan(&n); e != nil {
 				return nil, e
 			}
 			if n > 0 {
@@ -404,7 +406,7 @@ func (s *Service) Workflow(ctx context.Context, r store.Request, op string, in W
 					return nil, Fail("REVIEW_REQUIRED", "current specification requires independent critique")
 				}
 			}
-			_, e = c.ExecContext(ctx, `UPDATE workflow_ticket_specs SET prepared_revision=spec_revision WHERE ticket_id=?`, v.ID)
+			_, e = c.ExecContext(ctx, `UPDATE workflow_ticket_specs SET prepared_revision=(SELECT spec_revision FROM ticket_metadata WHERE ticket_id=workflow_ticket_specs.ticket_id) WHERE ticket_id=?`, v.ID)
 			if e != nil {
 				return nil, e
 			}
@@ -418,7 +420,7 @@ func (s *Service) Workflow(ctx context.Context, r store.Request, op string, in W
 			if in.Reason == "" {
 				return nil, Fail("USAGE", "execution grant reason required")
 			}
-			_, e = c.ExecContext(ctx, `UPDATE workflow_ticket_specs SET authorized_revision=spec_revision,paused=0 WHERE ticket_id=?`, v.ID)
+			_, e = c.ExecContext(ctx, `UPDATE workflow_ticket_specs SET authorized_revision=(SELECT spec_revision FROM ticket_metadata WHERE ticket_id=workflow_ticket_specs.ticket_id),paused=0 WHERE ticket_id=?`, v.ID)
 			if e != nil {
 				return nil, e
 			}
@@ -430,11 +432,11 @@ func (s *Service) Workflow(ctx context.Context, r store.Request, op string, in W
 			if in.Reason == "" {
 				return nil, Fail("USAGE", "unblock reason required")
 			}
-			_, e = c.ExecContext(ctx, `UPDATE workflow_ticket_specs SET blocked_reason='' WHERE ticket_id=?`, v.ID)
+			_, e = c.ExecContext(ctx, `UPDATE ticket_metadata SET blocked_reason='' WHERE ticket_id=?`, v.ID)
 			if e != nil {
 				return nil, e
 			}
-			_, e = c.ExecContext(ctx, `UPDATE tickets SET state=CASE WHEN EXISTS(SELECT 1 FROM workflow_ticket_specs WHERE ticket_id=? AND prepared_revision=spec_revision AND authorized_revision=spec_revision) THEN 'ready' ELSE 'draft' END WHERE id=? AND state='blocked'`, v.ID, v.ID)
+			_, e = c.ExecContext(ctx, `UPDATE tickets SET state=CASE WHEN EXISTS(SELECT 1 FROM workflow_ticket_specs s JOIN ticket_metadata m ON m.ticket_id=s.ticket_id WHERE s.ticket_id=? AND prepared_revision=m.spec_revision AND authorized_revision=m.spec_revision) THEN 'ready' ELSE 'draft' END WHERE id=? AND state='blocked'`, v.ID, v.ID)
 			if e != nil {
 				return nil, e
 			}
@@ -496,10 +498,23 @@ func (s *Service) ShowWorkflow(ctx context.Context, p string) (map[string]any, e
 // Bounded durable inputs and decisions let a fresh host reconstruct the ticket.
 func (s *Service) workflowTicketHistory(ctx context.Context, p, id string) (map[string]any, error) {
 	queries := map[string]string{
-		"versions":     `SELECT id,spec_revision,actor_id,payload,created_at FROM workflow_versions WHERE project_id=? AND ticket_id=? ORDER BY spec_revision DESC LIMIT 101`,
+		"versions":     `SELECT id,spec_revision,actor_id,payload,created_at FROM ticket_versions WHERE project_id=? AND ticket_id=? ORDER BY spec_revision DESC LIMIT 101`,
 		"critiques":    `SELECT q.id,q.spec_revision,q.session_id,q.agent_id,q.context_id,q.significant,q.body,q.created_at,d.actor_id AS disposition_actor,d.body AS disposition FROM workflow_critiques q LEFT JOIN workflow_dispositions d ON q.id=d.critique_id WHERE q.project_id=? AND q.ticket_id=? ORDER BY q.created_at DESC LIMIT 101`,
-		"validations":  `SELECT id,spec_revision,mode,session_id,agent_id,context_id,commit_id,criteria,evidence,checks,created_at FROM workflow_validations WHERE project_id=? AND ticket_id=? ORDER BY created_at DESC LIMIT 101`,
-		"dependencies": `SELECT t.id,t.display_key,t.state FROM workflow_dependencies d JOIN tickets t ON t.id=d.depends_on WHERE d.project_id=? AND d.ticket_id=? ORDER BY t.id LIMIT 101`,
+		"validations":  `SELECT id,spec_revision,mode,session_id,agent_id,context_id,commit_id,criteria,evidence,checks,created_at FROM ticket_decisions WHERE project_id=? AND ticket_id=? ORDER BY created_at DESC LIMIT 101`,
+		"dependencies": `SELECT t.id,t.display_key,t.state FROM ticket_dependencies d JOIN tickets t ON t.id=d.depends_on WHERE d.project_id=? AND d.ticket_id=? ORDER BY t.id LIMIT 101`,
+	}
+	var version int
+	if e := s.Store.DB.QueryRowContext(ctx, "PRAGMA user_version").Scan(&version); e != nil {
+		return nil, e
+	}
+	if version >= 3 {
+		queries["decisions"] = `SELECT id,spec_revision,mode,session_id,agent_id,context_id,commit_id,criteria,evidence,checks,created_at,outcome,reason FROM ticket_decisions WHERE project_id=? AND ticket_id=? ORDER BY created_at DESC LIMIT 101`
+		queries["submissions"] = `SELECT id,spec_revision,session_id,commit_id,summary,evidence,qa,created_at FROM ticket_submissions WHERE project_id=? AND ticket_id=? ORDER BY created_at DESC LIMIT 101`
+	}
+	if version < 3 {
+		for key, query := range queries {
+			queries[key] = strings.NewReplacer("ticket_versions", "workflow_versions", "ticket_dependencies", "workflow_dependencies", "ticket_decisions", "workflow_validations").Replace(query)
+		}
 	}
 	result := map[string]any{}
 	for key, query := range queries {

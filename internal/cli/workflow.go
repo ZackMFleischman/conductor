@@ -103,7 +103,7 @@ func WorkflowTicket(ctx context.Context, env Env, args []string) (any, error) {
 		return nil, e
 	}
 	if f.Bools["help"] {
-		return map[string]any{"command": "ticket " + op, "usage": "ticket " + op + " ID --body-file JSON --expect-revision N --request KEY (--human | --session S --coordination TOKEN)", "contract": "v2; critique uses session and fresh context_id; all other agent mutations require active coordinator"}, nil
+		return map[string]any{"command": "ticket " + op, "usage": "ticket " + op + " ID --body-file JSON --expect-revision N --request KEY (--human | --session S --coordination TOKEN)", "contract": "v2; critique uses session and fresh context_id; edit/unblock work on plain tickets with a live session; planning mutations follow configured authority"}, nil
 	}
 	if len(f.Positionals) != 1 {
 		return nil, core.Fail("USAGE", "exactly one ticket ID required")
@@ -132,5 +132,11 @@ func WorkflowTicket(ctx context.Context, env Env, args []string) (any, error) {
 	}
 	defer s.Store.DB.Close()
 	in.ProjectID = p.ID
+	if op == "edit" {
+		return s.EditTicket(ctx, store.Request{ID: f.Values["request"]}, in)
+	}
+	if op == "unblock" {
+		return s.UnblockTicket(ctx, store.Request{ID: f.Values["request"]}, in)
+	}
 	return s.Workflow(ctx, store.Request{ID: f.Values["request"]}, op, in)
 }

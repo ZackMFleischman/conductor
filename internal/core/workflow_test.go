@@ -176,7 +176,7 @@ func TestWorkflowSpecificationGateAndIndependence(t *testing.T) {
 		t.Fatal("not accepted")
 	}
 	var count int
-	f.s.Store.DB.QueryRow("SELECT count(*) FROM workflow_validations WHERE ticket_id=?", v.ID).Scan(&count)
+	f.s.Store.DB.QueryRow("SELECT count(*) FROM ticket_decisions WHERE ticket_id=?", v.ID).Scan(&count)
 	if count != 1 {
 		t.Fatal(count)
 	}
@@ -325,7 +325,7 @@ func TestWorkflowAcceptanceRollbackAndReplay(t *testing.T) {
 		t.Fatal("expected injected failure")
 	}
 	var n int
-	f.s.Store.DB.QueryRow(`SELECT count(*) FROM workflow_validations`).Scan(&n)
+	f.s.Store.DB.QueryRow(`SELECT count(*) FROM ticket_decisions`).Scan(&n)
 	if n != 0 || f.get(v.ID).State != "review" {
 		t.Fatal("partial acceptance")
 	}
@@ -338,7 +338,7 @@ func TestWorkflowAcceptanceRollbackAndReplay(t *testing.T) {
 	if e != nil || string(raw) != string(replay) {
 		t.Fatal("replay differs", e)
 	}
-	f.s.Store.DB.QueryRow(`SELECT count(*) FROM workflow_validations`).Scan(&n)
+	f.s.Store.DB.QueryRow(`SELECT count(*) FROM ticket_decisions`).Scan(&n)
 	if n != 1 {
 		t.Fatal(n)
 	}

@@ -137,7 +137,7 @@ func TestRetrospectiveMilestoneBlocksEligibility(t *testing.T) {
 	}
 	var d RetrospectiveDecision
 	json.Unmarshal(raw, &d)
-	if _, err = st.DB.Exec("UPDATE workflow_ticket_specs SET prepared_revision=spec_revision,authorized_revision=spec_revision WHERE ticket_id=?", d.TicketID); err != nil {
+	if _, err = st.DB.Exec("UPDATE workflow_ticket_specs SET prepared_revision=(SELECT spec_revision FROM ticket_metadata WHERE ticket_id=workflow_ticket_specs.ticket_id),authorized_revision=(SELECT spec_revision FROM ticket_metadata WHERE ticket_id=workflow_ticket_specs.ticket_id) WHERE ticket_id=?", d.TicketID); err != nil {
 		t.Fatal(err)
 	}
 	conn, err := st.DB.Conn(ctx)

@@ -19,7 +19,7 @@ var schema string
 //go:embed migrations/*.sql
 var migrations embed.FS
 
-const SchemaVersion = 2
+const SchemaVersion = 3
 
 type Store struct{ DB *sql.DB }
 
@@ -71,7 +71,7 @@ func Open(path string, create bool) (*Store, error) {
 		if err = db.QueryRow("PRAGMA user_version").Scan(&version); err == nil && version == 0 {
 			_, err = db.Exec(schema + " PRAGMA user_version=1;")
 			version = 1
-		} else if err == nil && version != 1 && version != SchemaVersion {
+		} else if err == nil && (version < 1 || version > SchemaVersion) {
 			err = fmt.Errorf("unsupported schema version %d", version)
 		}
 		if err != nil {
@@ -86,7 +86,7 @@ func Open(path string, create bool) (*Store, error) {
 		// VACUUM INTO makes a consistent snapshot even when the source uses WAL.
 		// Do this before the transaction; SQLite forbids VACUUM within one.
 		if !newStore {
-			backup := path + ".pre-v2-" + fmt.Sprint(time.Now().UnixNano())
+			backup := path + fmt.Sprintf(".pre-v%d-", SchemaVersion) + fmt.Sprint(time.Now().UnixNano())
 			if _, err = db.Exec("VACUUM INTO '" + strings.ReplaceAll(backup, "'", "''") + "'"); err != nil {
 				return fail(fmt.Errorf("migration backup: %w", err))
 			}
@@ -99,18 +99,29 @@ func Open(path string, create bool) (*Store, error) {
 		if _, err = db.Exec("BEGIN IMMEDIATE"); err != nil {
 			return fail(err)
 		}
-		if err = db.QueryRow("PRAGMA user_version").Scan(&version); err == nil && version == 1 {
-			var entries []string
-			entries, err = migrationNames()
-			for _, name := range entries {
+		if err = db.QueryRow("PRAGMA user_version").Scan(&version); err == nil {
+			for _, migration := range orderedMigrations {
+				if version >= migration.version {
+					continue
+				}
+				for _, name := range migration.files {
+					var b []byte
+					b, err = migrations.ReadFile("migrations/" + name)
+					if err == nil {
+						_, err = db.Exec(string(b))
+					}
+					if err != nil {
+						break
+					}
+				}
 				if err != nil {
 					break
 				}
-				var b []byte
-				b, err = migrations.ReadFile("migrations/" + name)
-				if err == nil {
-					_, err = db.Exec(string(b))
+				_, err = db.Exec(fmt.Sprintf("PRAGMA user_version=%d", migration.version))
+				if err != nil {
+					break
 				}
+				version = migration.version
 			}
 			if err == nil {
 				var rows *sql.Rows
@@ -125,12 +136,8 @@ func Open(path string, create bool) (*Store, error) {
 					rows.Close()
 				}
 			}
-			if err == nil {
-				_, err = db.Exec("PRAGMA user_version=2")
-			}
-		} else if err == nil && version != SchemaVersion {
-			err = fmt.Errorf("unsupported schema version %d", version)
 		}
+
 		if err != nil {
 			db.Exec("ROLLBACK")
 			return fail(err)
@@ -195,7 +202,7 @@ func OpenReadOnly(path string) (*Store, error) {
 	if e = db.QueryRow("PRAGMA user_version").Scan(&version); e != nil {
 		return fail(e)
 	}
-	if version != 1 && version != SchemaVersion {
+	if version < 1 || version > SchemaVersion {
 		return fail(fmt.Errorf("unsupported schema version %d", version))
 	}
 	var check string
@@ -212,16 +219,11 @@ func OpenReadOnly(path string) (*Store, error) {
 	return &Store{DB: db}, nil
 }
 
-func migrationNames() ([]string, error) {
-	entries, err := migrations.ReadDir("migrations")
-	if err != nil {
-		return nil, err
-	}
-	names := make([]string, 0, len(entries))
-	for _, entry := range entries {
-		if !entry.IsDir() && strings.HasSuffix(entry.Name(), ".sql") {
-			names = append(names, entry.Name())
-		}
-	}
-	return names, nil
+// Ordered explicitly so a populated v2 database never replays v2 table creation.
+var orderedMigrations = []struct {
+	version int
+	files   []string
+}{
+	{2, []string{"00-version.sql", "10-workflow.sql", "20-team.sql", "30-retrospective.sql"}},
+	{3, []string{"40-foundation.sql"}},
 }

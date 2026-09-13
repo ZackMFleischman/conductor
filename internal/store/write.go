@@ -51,7 +51,7 @@ func (s *Store) Write(ctx context.Context, r Request, mutate func(*sql.Conn) (js
 	var op, actor, oldHash, result string
 	err = conn.QueryRowContext(ctx, "SELECT operation,actor_id,payload_hash,result FROM requests WHERE project_id=? AND request_id=?", r.ProjectID, r.ID).Scan(&op, &actor, &oldHash, &result)
 	if err == nil {
-		if op != r.Operation || actor != r.ActorID || oldHash != hash {
+		if op != r.Operation || actor != r.ActorID || (oldHash != hash && !legacyTicketHash(r.Operation, value, oldHash)) {
 			return nil, ErrRequestConflict
 		}
 		return json.RawMessage(result), nil
@@ -73,4 +73,52 @@ func (s *Store) Write(ctx context.Context, r Request, mutate func(*sql.Conn) (js
 		return nil, err
 	}
 	return body, nil
+}
+
+// Compatibility is restricted to known historical ticket payload fields and their
+// exact empty values. Nonempty evidence and any other changed field still conflict.
+func legacyTicketHash(op string, value any, want string) bool {
+	switch op {
+	case "ticket.create", "ticket.assign", "ticket.claim", "ticket.note", "ticket.submit", "ticket.accept", "ticket.reject", "ticket.release", "ticket.block":
+	default:
+		return false
+	}
+	m, ok := value.(map[string]any)
+	if !ok {
+		return false
+	}
+	candidate := make(map[string]any, len(m))
+	for k, v := range m {
+		candidate[k] = v
+	}
+	commit, hasCommit := m["Commit"]
+	validation, hasValidation := m["Validation"]
+	for _, includeCommit := range []bool{false, true} {
+		if !hasCommit || commit == "" {
+			if includeCommit {
+				candidate["Commit"] = ""
+			} else {
+				delete(candidate, "Commit")
+			}
+		}
+		for _, includeValidation := range []bool{false, true} {
+			if !hasValidation || validation == nil {
+				if includeValidation {
+					candidate["Validation"] = nil
+				} else {
+					delete(candidate, "Validation")
+				}
+			}
+			b, e := json.Marshal(candidate)
+			if e != nil {
+				return false
+			}
+			sum := sha256.Sum256(b)
+			if hex.EncodeToString(sum[:]) == want {
+				return true
+			}
+		}
+	}
+
+	return false
 }

@@ -1,0 +1,16 @@
+CREATE TABLE ticket_metadata(ticket_id TEXT PRIMARY KEY,project_id TEXT NOT NULL,spec_revision INTEGER NOT NULL DEFAULT 1,parent_id TEXT,kind TEXT NOT NULL DEFAULT 'implementation',blocked_reason TEXT NOT NULL DEFAULT '',submitted_commit TEXT NOT NULL DEFAULT '',submitted_spec_revision INTEGER NOT NULL DEFAULT 0,legacy_human INTEGER NOT NULL DEFAULT 0,FOREIGN KEY(project_id,ticket_id) REFERENCES tickets(project_id,id),FOREIGN KEY(project_id,parent_id) REFERENCES tickets(project_id,id));
+INSERT INTO ticket_metadata(ticket_id,project_id,spec_revision,parent_id,kind,blocked_reason,submitted_commit,submitted_spec_revision,legacy_human)
+ SELECT t.id,t.project_id,COALESCE(s.spec_revision,1),s.parent_id,COALESCE(s.kind,'implementation'),COALESCE(s.blocked_reason,''),COALESCE(s.submitted_commit,''),COALESCE(s.submitted_spec_revision,0),CASE WHEN s.ticket_id IS NULL THEN 1 ELSE 0 END FROM tickets t LEFT JOIN workflow_ticket_specs s ON s.ticket_id=t.id;
+CREATE TRIGGER ticket_metadata_create AFTER INSERT ON tickets BEGIN INSERT INTO ticket_metadata(ticket_id,project_id) VALUES(NEW.id,NEW.project_id); END;
+ALTER TABLE workflow_dependencies RENAME TO ticket_dependencies;
+ALTER TABLE workflow_versions RENAME TO ticket_versions;
+ALTER TABLE workflow_validations RENAME TO ticket_decisions;
+ALTER TABLE ticket_decisions ADD COLUMN outcome TEXT NOT NULL DEFAULT 'accepted' CHECK(outcome IN('accepted','rejected'));
+ALTER TABLE ticket_decisions ADD COLUMN reason TEXT NOT NULL DEFAULT '';
+CREATE TABLE workflow_ticket_specs_v3(ticket_id TEXT PRIMARY KEY,project_id TEXT NOT NULL,validation_mode TEXT NOT NULL,required_checks TEXT NOT NULL DEFAULT '[]',policy_revision INTEGER NOT NULL,execution_mode TEXT NOT NULL,plan_review TEXT NOT NULL,prepared_revision INTEGER NOT NULL DEFAULT 0,authorized_revision INTEGER NOT NULL DEFAULT 0,paused INTEGER NOT NULL DEFAULT 0,FOREIGN KEY(project_id,ticket_id) REFERENCES tickets(project_id,id));
+INSERT INTO workflow_ticket_specs_v3 SELECT ticket_id,project_id,validation_mode,required_checks,policy_revision,execution_mode,plan_review,prepared_revision,authorized_revision,paused FROM workflow_ticket_specs;
+DROP TABLE workflow_ticket_specs;
+ALTER TABLE workflow_ticket_specs_v3 RENAME TO workflow_ticket_specs;
+INSERT INTO ticket_versions(id,project_id,ticket_id,spec_revision,actor_id,payload,created_at) SELECT 'migration-'||t.id,t.project_id,t.id,m.spec_revision,'migration',json_object('title',t.title,'body',t.body),t.created_at FROM tickets t JOIN ticket_metadata m ON m.ticket_id=t.id WHERE NOT EXISTS(SELECT 1 FROM ticket_versions v WHERE v.ticket_id=t.id);
+CREATE TABLE ticket_submissions(id TEXT PRIMARY KEY,project_id TEXT NOT NULL,ticket_id TEXT NOT NULL,spec_revision INTEGER NOT NULL,session_id TEXT,commit_id TEXT NOT NULL,summary TEXT NOT NULL,evidence TEXT NOT NULL,qa TEXT NOT NULL,created_at TEXT NOT NULL,FOREIGN KEY(project_id,ticket_id) REFERENCES tickets(project_id,id),FOREIGN KEY(project_id,session_id) REFERENCES sessions(project_id,id));
+INSERT INTO ticket_submissions SELECT 'migration-'||t.id,t.project_id,t.id,m.submitted_spec_revision,(SELECT session_id FROM claims c WHERE c.ticket_id=t.id ORDER BY created_at DESC LIMIT 1),m.submitted_commit,t.summary,t.evidence,t.qa,t.updated_at FROM tickets t JOIN ticket_metadata m ON m.ticket_id=t.id WHERE t.summary<>'';

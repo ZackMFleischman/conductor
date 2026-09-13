@@ -15,12 +15,12 @@ const TicketTextLimit = 256 * 1024
 
 // TicketInput is the complete replay payload; location is observed before entering the transaction.
 type TicketInput struct {
-	Commit                                                      string
+	Commit                                                      string `json:"Commit,omitempty"`
 	ProjectID, TicketID, SessionID, ClaimID                     string
 	ExpectedRevision                                            int
 	Title, Body, AssignedAgentID, Summary, Evidence, QA, Reason string
 	Human                                                       bool
-	Validation                                                  *WorkflowInput
+	Validation                                                  *WorkflowInput `json:"Validation,omitempty"`
 	Location                                                    gitctx.Context
 }
 type CreateTicketInput = TicketInput
@@ -32,24 +32,25 @@ type AcceptTicketInput = TicketInput
 type RejectTicketInput = TicketInput
 type ReleaseTicketInput = TicketInput
 type TicketRecord struct {
-	ID              string        `json:"id"`
-	ProjectID       string        `json:"project_id"`
-	DisplayKey      string        `json:"display_key"`
-	Title           string        `json:"title"`
-	Body            string        `json:"body"`
-	State           string        `json:"state"`
-	Revision        int           `json:"revision"`
-	AssignedAgentID *string       `json:"assigned_agent_id"`
-	Summary         string        `json:"summary"`
-	Evidence        string        `json:"evidence"`
-	QA              string        `json:"qa"`
-	CreatedAt       string        `json:"created_at"`
-	UpdatedAt       string        `json:"updated_at"`
-	ClaimID         string        `json:"claim_id,omitempty"`
-	Active          bool          `json:"active"`
-	EventID         string        `json:"event_id,omitempty"`
-	Warnings        []string      `json:"warnings,omitempty"`
-	Workflow        *WorkflowSpec `json:"workflow,omitempty"`
+	ID              string          `json:"id"`
+	ProjectID       string          `json:"project_id"`
+	DisplayKey      string          `json:"display_key"`
+	Title           string          `json:"title"`
+	Body            string          `json:"body"`
+	State           string          `json:"state"`
+	Revision        int             `json:"revision"`
+	AssignedAgentID *string         `json:"assigned_agent_id"`
+	Summary         string          `json:"summary"`
+	Evidence        string          `json:"evidence"`
+	QA              string          `json:"qa"`
+	CreatedAt       string          `json:"created_at"`
+	UpdatedAt       string          `json:"updated_at"`
+	ClaimID         string          `json:"claim_id,omitempty"`
+	Active          bool            `json:"active"`
+	EventID         string          `json:"event_id,omitempty"`
+	Warnings        []string        `json:"warnings,omitempty"`
+	Metadata        *TicketMetadata `json:"metadata,omitempty"`
+	Workflow        *WorkflowSpec   `json:"workflow,omitempty"`
 }
 type ticketReader interface {
 	QueryRowContext(context.Context, string, ...any) *sql.Row
@@ -63,6 +64,9 @@ func readTicket(ctx context.Context, c ticketReader, p, id string) (TicketRecord
 	}
 	if e == nil {
 		v.Workflow, e = workflowSpec(ctx, c, p, v.ID)
+	}
+	if e == nil {
+		v.Metadata, e = ticketMetadata(ctx, c, p, v.ID)
 	}
 	return v, e
 }
@@ -99,8 +103,8 @@ func ValidateTicketInput(op string, in TicketInput) error {
 	if (op == "release" || op == "reject" || op == "block") && !required(in.Reason) {
 		return Fail("USAGE", "reason required")
 	}
-	if op == "reject" && !in.Human {
-		return Fail("USAGE", "explicit --human required")
+	if (op == "accept" || op == "reject") && !in.Human && in.SessionID == "" {
+		return Fail("USAGE", "live session or explicit --human required")
 	}
 	if in.Human && (in.SessionID != "" || in.ClaimID != "") {
 		return Fail("USAGE", "human and owner modes are mutually exclusive")
@@ -201,7 +205,7 @@ func (s *Service) ticketMutation(ctx context.Context, r store.Request, op string
 					return nil, e
 				}
 			case "claim":
-				if e = CheckWorkflowEligibilityTx(ctx, c, in.ProjectID, v.ID); e != nil {
+				if e = CheckTicketClaimTx(ctx, c, in.ProjectID, v.ID, in.SessionID); e != nil {
 					return nil, e
 				}
 				session, e := ReadSession(ctx, c, in.ProjectID, in.SessionID)
@@ -262,10 +266,14 @@ func (s *Service) ticketMutation(ctx context.Context, r store.Request, op string
 							if strings.TrimSpace(in.Commit) == "" {
 								return nil, Fail("COMMIT_REQUIRED", "managed submission requires tested commit")
 							}
-							if _, e = c.ExecContext(ctx, `UPDATE workflow_ticket_specs SET submitted_commit=?,submitted_spec_revision=spec_revision WHERE ticket_id=?`, in.Commit, v.ID); e != nil {
-								return nil, e
-							}
 						}
+						if _, e = c.ExecContext(ctx, `UPDATE ticket_metadata SET submitted_commit=?,submitted_spec_revision=spec_revision WHERE ticket_id=?`, in.Commit, v.ID); e != nil {
+							return nil, e
+						}
+						if _, e = c.ExecContext(ctx, `INSERT INTO ticket_submissions SELECT ?,project_id,ticket_id,spec_revision,?,?,?,?,?,? FROM ticket_metadata WHERE ticket_id=?`, UUID(), in.SessionID, in.Commit, in.Summary, in.Evidence, in.QA, Now(), v.ID); e != nil {
+							return nil, e
+						}
+
 						v.State = "review"
 						v.Summary = in.Summary
 						v.Evidence = in.Evidence
@@ -273,15 +281,9 @@ func (s *Service) ticketMutation(ctx context.Context, r store.Request, op string
 						eventBody = in.Summary
 					}
 					if op == "block" {
-						sp, e := workflowSpec(ctx, c, in.ProjectID, v.ID)
-						if e != nil {
-							return nil, e
-						}
-						if sp == nil {
-							return nil, Fail("LEGACY_TICKET", "block requires workflow ticket")
-						}
+
 						v.State = "blocked"
-						if _, e = c.ExecContext(ctx, `UPDATE workflow_ticket_specs SET blocked_reason=? WHERE ticket_id=?`, in.Reason, v.ID); e != nil {
+						if _, e = c.ExecContext(ctx, `UPDATE ticket_metadata SET blocked_reason=? WHERE ticket_id=?`, in.Reason, v.ID); e != nil {
 							return nil, e
 						}
 					}
@@ -298,6 +300,9 @@ func (s *Service) ticketMutation(ctx context.Context, r store.Request, op string
 						return nil, e
 					}
 				}
+				if e = recordTicketDecisionTx(ctx, c, op, in, v); e != nil {
+					return nil, e
+				}
 				v.State = "done"
 				if op == "reject" {
 					v.State = "ready"
@@ -310,6 +315,17 @@ func (s *Service) ticketMutation(ctx context.Context, r store.Request, op string
 			_, e = c.ExecContext(ctx, `UPDATE tickets SET state=?,revision=?,assigned_agent_id=?,summary=?,evidence=?,qa=?,updated_at=? WHERE id=?`, v.State, v.Revision, v.AssignedAgentID, v.Summary, v.Evidence, v.QA, v.UpdatedAt, v.ID)
 			if e != nil {
 				return nil, e
+			}
+		}
+		if op == "create" && v.Workflow == nil {
+			var n int
+			if e = c.QueryRowContext(ctx, `SELECT count(*) FROM ticket_versions WHERE ticket_id=?`, v.ID).Scan(&n); e != nil {
+				return nil, e
+			}
+			if n == 0 {
+				if _, e = c.ExecContext(ctx, `INSERT INTO ticket_versions VALUES(?,?,?,?,?,?,?)`, UUID(), in.ProjectID, v.ID, 1, actor, string(JSON(in)), Now()); e != nil {
+					return nil, e
+				}
 			}
 		}
 		// Session observations are business writes: replay skips this callback and
@@ -326,6 +342,10 @@ func (s *Service) ticketMutation(ctx context.Context, r store.Request, op string
 		}
 		v.EventID = UUID()
 		v.Workflow, e = workflowSpec(ctx, c, in.ProjectID, v.ID)
+		if e != nil {
+			return nil, e
+		}
+		v.Metadata, e = ticketMetadata(ctx, c, in.ProjectID, v.ID)
 		if e != nil {
 			return nil, e
 		}
@@ -402,12 +422,15 @@ func (s *Service) ShowTicket(ctx context.Context, p, id string) (map[string]any,
 		events = events[:20]
 	}
 	result["events"] = events
-	if v.Workflow != nil {
+	if v.Workflow != nil || v.Metadata != nil {
 		history, err := s.workflowTicketHistory(ctx, p, v.ID)
 		if err != nil {
 			return nil, err
 		}
-		result["workflow_history"] = history
+		result["history"] = history
+		if v.Workflow != nil {
+			result["workflow_history"] = history
+		}
 	}
 	return result, nil
 }
