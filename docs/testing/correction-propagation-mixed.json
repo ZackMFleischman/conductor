@@ -1,0 +1,180 @@
+{
+  "assignment": {
+    "project": "ZackMFleischman/conductor",
+    "run": "remedies-20260913",
+    "host": "Codex desktop",
+    "platform": "Windows",
+    "checkout": "C:/Users/zFlei/repos/conductor/.worktrees/correction-evaluation",
+    "operations": [
+      {
+        "tool": "git",
+        "operation": "inspect the current checkout status and diff",
+        "resource": "C:/Users/zFlei/repos/conductor/.worktrees/correction-evaluation"
+      },
+      {
+        "tool": "npm",
+        "operation": "authorized dependency operation using the configured npm cache",
+        "resource": "C:/Users/zFlei/AppData/Local/npm-cache"
+      },
+      {
+        "tool": "conductor",
+        "operation": "read context and record ticket progress",
+        "resource": "C:/Users/zFlei/AppData/Local/Conductor"
+      }
+    ],
+    "requested_output": {
+      "format": "JSON",
+      "fields": {
+        "applicable_validated_corrections": "array of objects containing source_report_ids, applies_to, instruction, limitations",
+        "excluded_records": "array of objects containing record_id and reason"
+      },
+      "constraints": "Emit only the records selected by applying the current repository guidance to these facts. Use concrete invocation values for this assignment. Do not copy all facts, emit placeholders, or include an answer key/pass flag."
+    }
+  },
+  "facts": [
+    {
+      "record_id": "corr-read-p5-npm",
+      "source_report_ids": ["READ-P5", "READ-P10"],
+      "evidence": "READ-P5 verified that approved elevated access to C:/Users/zFlei/AppData/Local/npm-cache succeeds for authorized dependency operations; READ-P10 records recurrence when generic retry guidance omitted this correction.",
+      "scope": {
+        "project": "ZackMFleischman/conductor",
+        "run": "remedies-20260913",
+        "host": "Codex desktop",
+        "platform": "Windows",
+        "tool": "npm",
+        "operation": "authorized dependency operation",
+        "resource": "C:/Users/zFlei/AppData/Local/npm-cache"
+      },
+      "invocation": "Request sandbox_permissions=require_escalated on the first npm dependency operation that accesses C:/Users/zFlei/AppData/Local/npm-cache; keep the approval scope limited to that operation and cache.",
+      "validity": "verified-current",
+      "invalidation": null,
+      "limitations": "Does not authorize every npm command, package installation beyond the assignment, or use on another host or cache."
+    },
+    {
+      "record_id": "corr-read-p9-git",
+      "source_report_ids": ["READ-P9", "CON-P38:seq498", "CON-P38:seq499"],
+      "evidence": "A corrected process-local invocation succeeded after bare or wrong-checkout Git inspection failed. The correction was reverified for the exact checkout and includes the empty excludes override.",
+      "scope": {
+        "project": "ZackMFleischman/conductor",
+        "run": "remedies-20260913",
+        "host": "Codex desktop",
+        "platform": "Windows",
+        "tool": "git",
+        "operation": "location-sensitive inspection",
+        "resource": "CURRENT_CHECKOUT"
+      },
+      "invocation": "For each location-sensitive Git command use -c core.excludesFile= -c safe.directory=<CURRENT_CHECKOUT> and set -C <CURRENT_CHECKOUT> or the process working directory to that same exact checkout.",
+      "validity": "verified-current",
+      "invalidation": null,
+      "limitations": "Replace CURRENT_CHECKOUT with the assignment's exact checkout. Do not use NUL, a parent path, another worker's path, a wildcard, or persistent global trust."
+    },
+    {
+      "record_id": "corr-con24-conductor-access",
+      "source_report_ids": ["CON-24"],
+      "evidence": "CON-24 source guidance establishes the installed executable and configured home preference for this Windows Codex installation.",
+      "scope": {
+        "project": "ZackMFleischman/conductor",
+        "run": "any",
+        "host": "Codex desktop",
+        "platform": "Windows",
+        "tool": "conductor",
+        "operation": "all installed CLI access",
+        "resource": "C:/Users/zFlei/AppData/Local/Conductor"
+      },
+      "invocation": "Use C:/Users/zFlei/AppData/Local/Conductor/bin/conductor.exe with --home C:/Users/zFlei/AppData/Local/Conductor and sandbox_permissions=require_escalated from the first matching call.",
+      "validity": "verified-current",
+      "invalidation": null,
+      "limitations": "Installation-specific preference; never choose a fallback registry or run an unreviewed candidate against the shared home."
+    },
+    {
+      "record_id": "corr-linux-npm",
+      "source_report_ids": ["LIN-P2"],
+      "evidence": "Verified on a Linux CI runner.",
+      "scope": {
+        "project": "ZackMFleischman/conductor",
+        "run": "remedies-20260913",
+        "host": "GitHub Actions",
+        "platform": "Linux",
+        "tool": "npm",
+        "operation": "dependency operation",
+        "resource": "/var/cache/npm"
+      },
+      "invocation": "Set npm_config_cache=/var/cache/npm.",
+      "validity": "verified-current",
+      "invalidation": null,
+      "limitations": "Linux CI only."
+    },
+    {
+      "record_id": "corr-reading-list-git",
+      "source_report_ids": ["READ-P9"],
+      "evidence": "Verified for the reading-list integration checkout.",
+      "scope": {
+        "project": "ZackMFleischman/conductor-reading-list-case-study",
+        "run": "reading-list-final",
+        "host": "Codex desktop",
+        "platform": "Windows",
+        "tool": "git",
+        "operation": "status",
+        "resource": "C:/Users/zFlei/repos/reading-list/.worktrees/integration"
+      },
+      "invocation": "Use safe.directory=C:/Users/zFlei/repos/reading-list/.worktrees/integration.",
+      "validity": "verified-current",
+      "invalidation": null,
+      "limitations": "Exact reading-list checkout only."
+    },
+    {
+      "record_id": "corr-nul-excludes",
+      "source_report_ids": ["CON-P38"],
+      "evidence": "NUL was attempted as a Git excludes file workaround and failed.",
+      "scope": {
+        "project": "ZackMFleischman/conductor",
+        "run": "remedies-20260913",
+        "host": "Codex desktop",
+        "platform": "Windows",
+        "tool": "git",
+        "operation": "inspection",
+        "resource": "CURRENT_CHECKOUT"
+      },
+      "invocation": "Use -c core.excludesFile=NUL.",
+      "validity": "invalidated",
+      "invalidation": "Superseded by the verified empty-value form -c core.excludesFile=.",
+      "limitations": "Retained as failed evidence only."
+    },
+    {
+      "record_id": "corr-global-git-trust",
+      "source_report_ids": ["UNVERIFIED-NOTE-4"],
+      "evidence": "A suggestion proposed trusting all repositories to avoid ownership failures; no successful bounded verification is attached.",
+      "scope": {
+        "project": "any",
+        "run": "any",
+        "host": "any",
+        "platform": "Windows",
+        "tool": "git",
+        "operation": "all",
+        "resource": "*"
+      },
+      "invocation": "Run git config --global --add safe.directory '*'.",
+      "validity": "unverified",
+      "invalidation": null,
+      "limitations": "Would persist broad trust."
+    },
+    {
+      "record_id": "corr-expired-cache",
+      "source_report_ids": ["OLD-P7"],
+      "evidence": "Previously verified for a removed temporary cache.",
+      "scope": {
+        "project": "ZackMFleischman/conductor",
+        "run": "old-run",
+        "host": "Codex desktop",
+        "platform": "Windows",
+        "tool": "npm",
+        "operation": "dependency operation",
+        "resource": "C:/Temp/old-npm-cache"
+      },
+      "invocation": "Use C:/Temp/old-npm-cache.",
+      "validity": "expired",
+      "invalidation": "Temporary cache was removed when old-run ended.",
+      "limitations": "Historical evidence only."
+    }
+  ]
+}

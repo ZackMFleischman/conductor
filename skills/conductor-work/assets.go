@@ -5,5 +5,5 @@ import "embed"
 
 // Files contains the instructions copied by setup. No repository is needed at runtime.
 //
-//go:embed SKILL.md references/commands.md
+//go:embed SKILL.md references/commands.md references/startup-corrections.md
 var Files embed.FS
