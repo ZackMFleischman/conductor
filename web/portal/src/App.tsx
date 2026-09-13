@@ -2,7 +2,6 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Alert, Box, Button, Chip, CircularProgress, CssBaseline, FormControl, InputAdornment, NativeSelect, Paper, Stack, TextField, ThemeProvider, Typography, useMediaQuery } from '@mui/material';
 import AccountTreeOutlined from '@mui/icons-material/AccountTreeOutlined';
 import SearchOutlined from '@mui/icons-material/SearchOutlined';
-import VisibilityOutlined from '@mui/icons-material/VisibilityOutlined';
 import ScienceOutlined from '@mui/icons-material/ScienceOutlined';
 import type { BoardSnapshot, BoardSource, BoardTicket, ConnectionStatus } from './board';
 import { KanbanBoard } from './components/KanbanBoard';
@@ -134,10 +133,10 @@ export function App({ source, projectControl, projectName }: { source: BoardSour
   const clearFilters = () => { setQuery(''); setAssignee('all'); setGroup('all'); };
 
   return <ThemeProvider theme={theme}><TicketLinksContext.Provider value={ticketLinks}><CssBaseline />
-    <Box sx={{ mr: desktopDrawer && activityOpen ? `${activityDrawerWidth}px` : 0,
+    <Box sx={{ height: '100dvh', display: 'flex', flexDirection: 'column', minWidth: 0, overflow: 'hidden', mr: desktopDrawer && activityOpen ? `${activityDrawerWidth}px` : 0,
       transition: theme.transitions.create('margin-right', { duration: activityOpen ? theme.transitions.duration.enteringScreen : theme.transitions.duration.leavingScreen }),
       '@media (prefers-reduced-motion: reduce)': { transition: 'none' } }}>
-    <Box component="header" sx={{ bgcolor: '#fff', borderBottom: '1px solid', borderColor: 'divider', px: { xs: 2, md: 3 }, py: 1 }}>
+    <Box component="header" sx={{ flexShrink: 0, bgcolor: '#fff', borderBottom: '1px solid', borderColor: 'divider', px: { xs: 2, md: 3 }, py: 1 }}>
       <Stack direction="row" spacing={2} sx={{ alignItems: 'center', justifyContent: 'space-between' }}>
         <Stack direction="row" spacing={1.25} sx={{ alignItems: 'center' }}>
           <Box sx={{ width: 28, height: 28, borderRadius: 1.25, bgcolor: '#244f47', color: '#fff', display: 'grid', placeItems: 'center' }}><AccountTreeOutlined sx={{ fontSize: 19 }} /></Box>
@@ -145,15 +144,14 @@ export function App({ source, projectControl, projectName }: { source: BoardSour
           <Typography sx={{ color: '#c6cdd6', pl: 1, display: { xs: 'none', sm: 'block' } }}>/</Typography>
           <Typography variant="body2" color="text.secondary" sx={{ display: { xs: 'none', sm: 'block' } }}>{displayedProjectName ?? 'Conductor'}</Typography>
         </Stack>
-        <Chip icon={<VisibilityOutlined />} label="Read only" size="small" variant="outlined" sx={{ borderColor: '#dce2e8', color: 'text.secondary', fontSize: '0.72rem' }} />
+        <Button ref={activityToggle} size="small" aria-controls="activity-drawer" aria-expanded={activityOpen} onClick={() => setActivityOpen(value => !value)}>Activity{activity.length ? ` (${activity.length})` : ''}</Button>
       </Stack>
     </Box>
-    <Box component="main" sx={{ maxWidth: 1800, mx: 'auto', px: { xs: 2, md: 3 }, pt: 2, pb: 2 }}>
+    <Box component="main" sx={{ flex: 1, minHeight: 0, minWidth: 0, width: '100%', display: 'flex', flexDirection: 'column', maxWidth: 1800, mx: 'auto', px: { xs: 2, md: 3 }, pt: 2, pb: 2 }}>
       <Stack direction="row" sx={{ alignItems: 'center', flexWrap: 'wrap', gap: 1.5, mb: 1.5 }}>
         <Typography component="h1" variant="h1" sx={{ overflowWrap: 'anywhere' }}>{displayedProjectName ? `${displayedProjectName} · Work board` : 'Work board'}</Typography>
         <Chip icon={<ScienceOutlined />} label={source.kind === 'fixture' ? 'Fixture data' : 'Live data'} size="small" sx={{ bgcolor: '#e1eee7', color: '#285d4f', fontSize: '0.7rem' }} />
         {projectControl}
-        <Button ref={activityToggle} size="small" aria-controls="activity-drawer" aria-expanded={activityOpen} onClick={() => setActivityOpen(value => !value)}>Activity{activity.length ? ` (${activity.length})` : ''}</Button>
         {source.subscribe && <Typography role="status" variant="caption" color="text.secondary">{connection === 'disconnected' || connection === 'error' ? 'Disconnected' : refreshing ? 'Refreshing…' : connection === 'connecting' ? 'Connecting…' : 'Connected'}</Typography>}
         {board && <Stack direction="row" sx={{ ml: { sm: 'auto' }, gap: 2, flexWrap: 'wrap' }}>
           {[[tickets.length, 'tickets'], [tickets.filter(t => t.status === 'in_progress').length, 'in progress'], [tickets.filter(t => t.status === 'blocked').length, 'blocked'], [tickets.filter(t => t.status === 'review').length, 'in review']].map(([count, label]) => <Typography key={label} variant="caption" color="text.secondary"><Box component="span" sx={{ fontWeight: 700, color: 'text.primary', mr: 0.5 }}>{count}</Box>{' '}{label}</Typography>)}
@@ -183,7 +181,7 @@ export function App({ source, projectControl, projectName }: { source: BoardSour
           <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>{tickets.length === 0 ? 'Tickets will appear here when the source has work to show.' : 'Try another search or clear the filters to see all work.'}</Typography>
         </Paper>}
         <KanbanBoard tickets={filtered} query={term} onGroupFilter={setGroup} updatedTickets={updatedTickets} onOpen={setSelectedKey} />
-        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>Assignment shows ownership, not an active claim. This board does not change ticket state.</Typography>
+        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', flexShrink: 0, mt: 1 }}>Assignment shows ownership, not an active claim. This board does not change ticket state.</Typography>
       </>}
     </Box>
     </Box>

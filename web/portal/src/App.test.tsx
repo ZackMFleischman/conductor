@@ -13,7 +13,8 @@ describe('read-only work board', () => {
       expect(await screen.findByRole('region', { name: lane })).toBeInTheDocument();
     }
     expect(screen.getByText('Fixture data')).toBeInTheDocument();
-    expect(screen.getByText('Read only')).toBeInTheDocument();
+    expect(screen.queryByText('Read only')).not.toBeInTheDocument();
+    expect(within(screen.getByRole('banner')).getByRole('button', { name: 'Activity' })).toBeInTheDocument();
     expect(screen.getAllByRole('article')).toHaveLength(12);
     expect(screen.getAllByText('Unassigned')).not.toHaveLength(0);
     expect(screen.getByText('Waiting for an agreed read API contract.')).toBeInTheDocument();

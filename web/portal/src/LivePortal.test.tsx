@@ -54,10 +54,10 @@ it('keeps the project in the heading and tab title across project switches and i
   const user = userEvent.setup();
   render(<LivePortal />);
   await screen.findByRole('heading', { level: 1, name: 'a · Work board' });
-  expect(document.title).toBe('a · Conductor');
+  await waitFor(() => expect(document.title).toBe('a · Conductor'));
   await user.selectOptions(screen.getByRole('combobox', { name: 'Project' }), 'b');
   await screen.findByRole('heading', { level: 1, name: 'b · Work board' });
-  expect(document.title).toBe('b · Conductor');
+  await waitFor(() => expect(document.title).toBe('b · Conductor'));
   await act(async () => {
     history.pushState(null, '', '/?project=missing');
     window.dispatchEvent(new PopStateEvent('popstate'));

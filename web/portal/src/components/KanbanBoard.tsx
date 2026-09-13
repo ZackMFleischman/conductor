@@ -5,7 +5,7 @@ import { statusMeta, TicketCard } from './TicketCard';
 
 export function KanbanBoard({ tickets, query, onGroupFilter, updatedTickets, onOpen }: { tickets: BoardTicket[]; query: string; onGroupFilter: (value: string) => void; updatedTickets?: ReadonlySet<string>; onOpen?: (key: string) => void }) {
   const [doneLimit, setDoneLimit] = useState(20);
-  return <Box sx={{ overflowX: 'auto', pb: 2 }} tabIndex={0} role="group" aria-label="Ticket lanes; scroll horizontally on smaller desktop screens">
+  return <Box sx={{ flex: '1 1 auto', minHeight: 0, minWidth: 0, overflow: 'auto', scrollbarGutter: 'stable', pb: 1 }} tabIndex={0} role="group" aria-label="Ticket lanes; scroll horizontally on smaller desktop screens">
     <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'minmax(0, 1fr)', sm: 'repeat(5, minmax(244px, 1fr))' }, gap: 1, alignItems: 'start' }}>
       {statuses.map(status => {
         const meta = statusMeta[status];
