@@ -1,8 +1,10 @@
-import { useId, useLayoutEffect, useRef, useState } from 'react';
-import { Button, Typography } from '@mui/material';
-import { HighlightedText } from './HighlightedText';
+import { memo, useId, useLayoutEffect, useRef, useState } from 'react';
+import { Box, Button, Typography } from '@mui/material';
+import Markdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import { highlightMarkdown } from './highlightMarkdown';
 
-export function TicketDescription({ text, query }: { text: string; query: string }) {
+export const TicketDescription = memo(function TicketDescription({ text, query }: { text: string; query: string }) {
   const id = useId();
   const element = useRef<HTMLDivElement>(null);
   const [expanded, setExpanded] = useState(false);
@@ -24,13 +26,37 @@ export function TicketDescription({ text, query }: { text: string; query: string
     return () => observer.disconnect();
   }, [text, query]);
   return <>
-    <Typography component="div" ref={element} id={id} variant="body2" color="text.secondary" sx={{
-      whiteSpace: 'pre-wrap', display: '-webkit-box', WebkitBoxOrient: 'vertical',
-      WebkitLineClamp: expanded ? 'unset' : 4, overflow: expanded ? 'visible' : 'hidden',
-    }}><HighlightedText text={text} query={query} /></Typography>
+    <Typography component="div" id={id} variant="body2" color="text.secondary" sx={{
+      maxHeight: expanded ? 'none' : '5.6em', overflow: 'hidden', lineHeight: 1.4,
+    }}>
+      <Box ref={element} sx={{
+        overflowWrap: 'anywhere',
+        '& > :first-child': { mt: 0 }, '& > :last-child': { mb: 0 },
+        '& p, & ul, & ol, & blockquote, & pre, & table': { my: 0.75 },
+        '& h1, & h2, & h3, & h4, & h5, & h6': { fontSize: '1.08em', lineHeight: 1.4, fontWeight: 700, color: 'text.primary', mt: 1, mb: 0.5 },
+        '& ul, & ol': { pl: 2.25 }, '& li > p': { my: 0.25 },
+        '& blockquote': { ml: 0, mr: 0, pl: 1, borderLeft: '3px solid', borderColor: 'divider' },
+        '& a': { color: 'primary.main', textDecoration: 'underline' },
+        '& code': { fontFamily: 'Consolas, monospace', fontSize: '0.95em', bgcolor: '#eef1f5', px: 0.25, borderRadius: 0.5 },
+        '& pre': { p: 1, bgcolor: '#eef1f5', borderRadius: 1, overflowX: 'auto', whiteSpace: 'pre' },
+        '& pre code': { p: 0 },
+        '& th, & td': { border: '1px solid', borderColor: 'divider', px: 0.75, py: 0.5 },
+        '& th': { fontWeight: 700, bgcolor: '#eef1f5' },
+        '& table': { borderCollapse: 'collapse', width: '100%', minWidth: 360, tableLayout: 'fixed' },
+        '& img': { maxWidth: '100%', height: 'auto' },
+        '& .contains-task-list': { listStyle: 'none', pl: 0 },
+        '& input[type="checkbox"]': { mr: 0.5 },
+      }}>
+        <Markdown remarkPlugins={[remarkGfm]} remarkRehypeOptions={{ clobberPrefix: `${id}-` }} rehypePlugins={[[highlightMarkdown, { query }]]} components={{
+          a: ({ node: _node, ...props }) => <a {...props} aria-describedby={props['aria-describedby'] === 'footnote-label' ? `${id}-footnote-label` : props['aria-describedby']} tabIndex={!expanded && overflows ? -1 : undefined} />,
+          h2: ({ node: _node, ...props }) => <h2 {...props} id={props.id === 'footnote-label' ? `${id}-footnote-label` : props.id} />,
+          table: ({ node: _node, ...props }) => <Box sx={{ overflowX: 'auto' }}><table {...props} /></Box>,
+        }}>{text}</Markdown>
+      </Box>
+    </Typography>
     {overflows && <Button size="small" aria-expanded={expanded} aria-controls={id}
       onClick={() => setExpanded(value => !value)} sx={{ minWidth: 0, p: 0, mt: 0.25, fontSize: '0.68rem' }}>
       {expanded ? 'Show less' : 'Show more'}
     </Button>}
   </>;
-}
+});

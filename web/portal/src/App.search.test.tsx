@@ -56,3 +56,18 @@ it('does not keep a ticket for a phrase that spans unrelated fields', async () =
   expect(screen.queryAllByRole('article')).toHaveLength(0);
   expect(screen.getByText('No tickets match these filters')).toBeInTheDocument();
 });
+
+it('searches visible Markdown phrases rather than hidden formatting and link targets', async () => {
+  const user = userEvent.setup();
+  const board = structuredClone(snapshot);
+  board.tickets[0].description = 'Use **bold** [text](https://example.com/hidden-target)';
+  const { container } = render(<App source={{ kind: 'fixture', load: async () => board }} />);
+  await screen.findByRole('article');
+  const search = screen.getByRole('textbox', { name: 'Search tickets' });
+  await user.type(search, 'Use bold text');
+  expect(screen.getByRole('article')).toBeInTheDocument();
+  expect([...container.querySelectorAll('mark')].map(node => node.textContent).join('')).toBe('Use bold text');
+  await user.clear(search);
+  await user.type(search, 'hidden-target');
+  expect(screen.queryAllByRole('article')).toHaveLength(0);
+});

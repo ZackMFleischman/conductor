@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Alert, Box, Button, Chip, CircularProgress, CssBaseline, FormControl, InputAdornment, NativeSelect, Paper, Stack, TextField, ThemeProvider, Typography } from '@mui/material';
 import AccountTreeOutlined from '@mui/icons-material/AccountTreeOutlined';
 import SearchOutlined from '@mui/icons-material/SearchOutlined';
@@ -8,6 +8,7 @@ import type { BoardSnapshot, BoardSource, ConnectionStatus } from './board';
 import { KanbanBoard } from './components/KanbanBoard';
 import { findSearchMatches } from './search';
 import { theme } from './theme';
+import { markdownSearchText } from './components/highlightMarkdown';
 
 type LoadState = { status: 'loading' | 'error' | 'ready'; board?: BoardSnapshot };
 
@@ -99,11 +100,12 @@ export function App({ source, projectControl, projectName }: { source: BoardSour
     return () => { document.title = 'Conductor'; };
   }, [displayedProjectName]);
   const tickets = board?.tickets ?? [];
+  const descriptionText = useMemo(() => new Map(board?.tickets.map(ticket => [ticket.id, markdownSearchText(ticket.description)])), [board]);
   const term = query.trim();
   const filtered = tickets.filter(ticket => {
     const matchesOwner = assignee === 'all' || (assignee === 'unassigned' ? ticket.assignee === null : ticket.assignee !== null && 'owner:' + ticket.assignee.id === assignee);
     const matchesGroup = group === 'all' || (group === 'ungrouped' ? ticket.ancestors.length === 0 : 'ref:' + ticket.id === group || ticket.ancestors.some(ref => 'ref:' + ref.id === group));
-    const searchable = [ticket.key, ticket.title, ticket.description, ticket.assignee?.name ?? 'Unassigned', ...ticket.blockers.flatMap(b => [b.reason, b.ticketKey ?? ''])];
+    const searchable = [ticket.key, ticket.title, descriptionText.get(ticket.id) ?? '', ticket.assignee?.name ?? 'Unassigned', ...ticket.blockers.flatMap(b => [b.reason, b.ticketKey ?? ''])];
     return matchesOwner && matchesGroup && (!term || searchable.some(text => findSearchMatches(text, term).length > 0));
   });
   const owners = Array.from(new Map(tickets.flatMap(t => t.assignee ? [[t.assignee.id, t.assignee] as const] : [])).values()).sort((a, b) => a.name.localeCompare(b.name));
