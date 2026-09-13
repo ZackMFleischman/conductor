@@ -184,6 +184,30 @@ func TestFoundationMetadataOnlyEditPreservesAcceptedTicket(t *testing.T) {
 	}
 }
 
+func TestFoundationMetadataOnlyEditRejectsGuardsWithoutChangingTicket(t *testing.T) {
+	f := newWorkflowFixture(t, "human")
+	if _, e := f.s.Store.DB.Exec("DELETE FROM workflow_policies WHERE project_id=?", f.p); e != nil { t.Fatal(e) }
+	parent, v := f.ticket("parent"), f.ticket("target")
+	before := func() TicketRecord { return f.get(v.ID) }
+	assertUnchanged := func(old TicketRecord) { got := f.get(v.ID); if got.State != old.State || got.Revision != old.Revision || got.Metadata.SpecRevision != old.Metadata.SpecRevision || got.Metadata.SubmittedCommit != old.Metadata.SubmittedCommit { t.Fatalf("changed: %#v", got) } }
+	old := before()
+	_, e := f.s.EditTicketMetadata(f.ctx, f.req(), WorkflowInput{ProjectID:f.p, TicketID:v.ID, SessionID:f.reviewer, ExpectedRevision:old.Revision+1, ParentID:parent.ID, Reason:"stale"})
+	f.fail("REVISION_CONFLICT", e); assertUnchanged(old)
+	_, e = f.s.EditTicketMetadata(f.ctx, f.req(), WorkflowInput{ProjectID:f.p, TicketID:v.ID, SessionID:f.reviewer, ExpectedRevision:old.Revision, ParentID:"missing", Reason:"missing"})
+	f.fail("NOT_FOUND", e); assertUnchanged(old)
+	_, e = f.s.EditTicketMetadata(f.ctx, f.req(), WorkflowInput{ProjectID:f.p, TicketID:v.ID, SessionID:f.reviewer, ExpectedRevision:old.Revision, ParentID:v.ID, Reason:"cycle"})
+	f.fail("CYCLE", e); assertUnchanged(old)
+	_, e = f.s.ClaimTicket(f.ctx, f.req(), TicketInput{ProjectID:f.p, TicketID:v.ID, SessionID:f.worker, ExpectedRevision:old.Revision, Location:f.g})
+	if e != nil { t.Fatal(e) }
+	old = before()
+	_, e = f.s.EditTicketMetadata(f.ctx, f.req(), WorkflowInput{ProjectID:f.p, TicketID:v.ID, SessionID:f.reviewer, ExpectedRevision:f.get(v.ID).Revision, ParentID:parent.ID, Reason:"active"})
+	f.fail("ACTIVE_CLAIM", e); assertUnchanged(old)
+	if _, e = f.s.Store.DB.Exec("UPDATE claims SET released_at=? WHERE ticket_id=?", Now(), v.ID); e != nil { t.Fatal(e) }
+	if _, e = f.s.Store.DB.Exec("INSERT INTO workflow_ticket_specs(ticket_id,project_id,validation_mode,required_checks,policy_revision,execution_mode,plan_review) VALUES(?,?,?,?,?,?,?)", v.ID,f.p,"human","[]",1,"delegated","lightweight"); e != nil { t.Fatal(e) }
+	_, e = f.s.EditTicketMetadata(f.ctx, f.req(), WorkflowInput{ProjectID:f.p, TicketID:v.ID, SessionID:f.reviewer, ExpectedRevision:f.get(v.ID).Revision, ParentID:parent.ID, Reason:"policy"})
+	f.fail("WORKFLOW_TICKET", e); assertUnchanged(old)
+}
+
 func TestFoundationLegacyAndStoppedDecisions(t *testing.T) {
 	f := newWorkflowFixture(t, "human")
 	f.s.Store.DB.Exec("DELETE FROM workflow_policies WHERE project_id=?", f.p)
