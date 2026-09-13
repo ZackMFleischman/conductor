@@ -1,0 +1,1 @@
+Tracker follow-up: problem append CON-P21 returned NOT_FOUND, so no correction was saved by that failed attempt. Retried using the returned problem UUID 723f1bbc-01ae-4a98-a2bb-d5a09da95fdc with a new request ID; append succeeded at event seq 91. Installed CLI accepts the UUID for problem append. No fallback registry or migration used.
