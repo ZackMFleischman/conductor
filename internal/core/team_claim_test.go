@@ -55,7 +55,7 @@ func (f *teamFixture) claimFixture() (TeamRun, TicketRecord) {
 	in = owned(r)
 	in.LaunchID, in.HostState, in.Evidence = r.Launches[0].ID, "active", "native host result"
 	r = f.action("observe", "observe", in)
-	r = f.action("ack", "ack", TeamInput{RunID: r.ID, SessionID: f.child, ExpectedRevision: r.Revision, LaunchID: r.Launches[0].ID, Epoch: r.Epoch, HostID: "host", Role: "worker", AgentID: f.aid, Scope: r.Profile.Scope, SkillVersion: r.Profile.SkillVersion, Checkpoint: "exact assignment ready"})
+	r = f.action("ack", "ack", TeamInput{RunID: r.ID, SessionID: f.child, ExpectedRevision: r.Revision, LaunchID: r.Launches[0].ID, Epoch: r.Epoch, ChallengeGeneration: r.Launches[0].ChallengeGeneration, HostID: "host", Role: "worker", AgentID: f.aid, Scope: r.Profile.Scope, SkillVersion: r.Profile.SkillVersion, Checkpoint: "exact assignment ready"})
 	r = f.action("ready", "ready-again", owned(r))
 	return r, ticket
 }
@@ -77,6 +77,8 @@ func TestTeamClaimRestrictions(t *testing.T) {
 		{"wrong ticket", "UPDATE team_launches SET ticket_id=NULL", "TEAM_ASSIGNMENT"},
 		{"pending registration", "UPDATE team_launches SET session_id=NULL,host_id=NULL", "TEAM_NOT_READY"},
 		{"wrong session", "UPDATE team_launches SET session_id=(SELECT coordinator_session_id FROM team_runs LIMIT 1)", "TEAM_NOT_READY"},
+		{"zero-generation", "UPDATE team_launches SET challenge_generation=0,acknowledged_generation=0", "TEAM_NOT_READY"},
+		{"wrong-generation", "UPDATE team_launches SET acknowledged_generation=challenge_generation+1", "TEAM_NOT_READY"},
 		{"unacknowledged", "UPDATE team_launches SET acknowledged_epoch=0", "TEAM_NOT_READY"},
 		{"stale observation", "UPDATE team_launches SET observed_epoch=0", "TEAM_NOT_READY"},
 		{"unknown host", "UPDATE team_launches SET host_state='unknown'", "TEAM_NOT_READY"},

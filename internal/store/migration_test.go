@@ -2,6 +2,7 @@ package store
 
 import (
 	"database/sql"
+	"fmt"
 	"path/filepath"
 	"testing"
 )
@@ -38,7 +39,7 @@ func TestLegacyMigrationPreservesData(t *testing.T) {
 	if err = s.DB.QueryRow("SELECT prefix FROM projects WHERE id='legacy'").Scan(&prefix); err != nil || prefix != "OLD" {
 		t.Fatalf("lost legacy project: %q %v", prefix, err)
 	}
-	backups, _ := filepath.Glob(p + ".pre-v3-*")
+	backups, _ := filepath.Glob(p + fmt.Sprintf(".pre-v%d-*", SchemaVersion))
 	if len(backups) != 1 {
 		t.Fatalf("expected consistent pre-migration backup, got %v", backups)
 	}

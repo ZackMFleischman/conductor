@@ -299,8 +299,8 @@ func TestDBReaderRevisionTracksExternalContentAndProjectEvents(t *testing.T) {
 	}
 }
 
-func TestDBReaderRequiresSchemaThreeWithoutMutation(t *testing.T) {
-	for _, version := range []int{1, 2, 3, 4} {
+func TestDBReaderRequiresCurrentSchemaWithoutMutation(t *testing.T) {
+	for _, version := range []int{1, 2, 3, store.SchemaVersion, store.SchemaVersion + 1} {
 		t.Run(fmt.Sprint(version), func(t *testing.T) {
 			f := newBoardFixture(t)
 			f.project(t, "p", "P")
@@ -312,7 +312,7 @@ func TestDBReaderRequiresSchemaThreeWithoutMutation(t *testing.T) {
 			}
 			_, projectsErr := f.reader.Projects(context.Background())
 			_, boardErr := f.reader.Board(context.Background(), "p")
-			if version != 3 {
+			if version != store.SchemaVersion {
 				if !errors.Is(projectsErr, ErrUnsupportedSchema) || !errors.Is(boardErr, ErrUnsupportedSchema) {
 					t.Fatalf("schema %d: %v / %v", version, projectsErr, boardErr)
 				}

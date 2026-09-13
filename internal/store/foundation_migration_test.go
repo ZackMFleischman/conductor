@@ -76,7 +76,7 @@ func TestFoundationMigrationAndHistoricalReplay(t *testing.T) {
 				t.Fatal(e)
 			}
 			defer migrated.DB.Close()
-			if e = migrated.DB.QueryRow("PRAGMA user_version").Scan(&got); e != nil || got != 3 {
+			if e = migrated.DB.QueryRow("PRAGMA user_version").Scan(&got); e != nil || got != SchemaVersion {
 				t.Fatalf("version %d %v", got, e)
 			}
 			var legacy bool
@@ -130,7 +130,7 @@ func TestFoundationMigrationAndHistoricalReplay(t *testing.T) {
 			if afterHash != oldHash {
 				t.Fatal("journal rewritten")
 			}
-			backups, _ := filepath.Glob(path + ".pre-v3-*")
+			backups, _ := filepath.Glob(path + fmt.Sprintf(".pre-v%d-*", SchemaVersion))
 			if len(backups) != 1 {
 				t.Fatal(backups)
 			}
@@ -150,7 +150,7 @@ func TestFoundationMigrationAndHistoricalReplay(t *testing.T) {
 			}
 			ro.DB.QueryRow("PRAGMA user_version").Scan(&got)
 			ro.DB.Close()
-			if got != 3 {
+			if got != SchemaVersion {
 				t.Fatal("wrong read-only v3 version")
 			}
 			if _, e = os.Stat(path); e != nil {

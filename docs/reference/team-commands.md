@@ -1,4 +1,4 @@
-# Native-host team commands (contract layers-v1)
+# Native-host team commands (schema 4, team contract 3, skill contract layers-v1)
 
 These commands record coordination and host observations. Use native host tools
 to create, query, checkpoint and stop children. Conductor launches no process and
@@ -53,7 +53,7 @@ team ACTION RUN --session S --coordination TOKEN --expect-revision N --request K
 | `resume` | No body. Reconciles the same held coordinator and advances readiness epoch; it does not assume children are alive. |
 | `launch` | `{"role":"improver","agent_id":"AGENT_UUID"}`. Records a unique intent **before** native host creation. Roles: improver, planner, reviewer, validator, worker, observer. Worker requires `ticket_id` and a ready run; use the exact ticket UUID. |
 | `register` | `{"launch_id":"L","host_id":"HOST_ID","child_session_id":"CHILD_SESSION"}`. Binds the intent to one fresh native context and session matching its stable identity. Neither host ID nor session can be reused by another launch. Identical registration is safe; different registration is rejected. |
-| `observe` | `{"launch_id":"L","host_state":"active","evidence":"Native tool result or checkpoint reference"}`. Host states: active, unknown, finished, stopped. Host transitions advance epoch and invalidate old acknowledgements. Unknown launch results must be reconciled before retrying creation. |
+| `observe` | `{"launch_id":"L","host_state":"active","evidence":"Native tool result or checkpoint reference"}`. Host states: active, unknown, finished, stopped. Host transitions mint a new launch-local `challenge_generation` and clear only its acknowledgement. Unchanged active observations in the same global epoch preserve their challenge. Unknown launch results must be reconciled before retrying creation. |
 | `ready` | No body. Requires capabilities, live coordinator and child sessions, current native active observations and fresh acknowledgements from required roles. |
 | `stop` | `{"reason":"Checkpoint requested; native child statuses inspected"}`. Stops dispatch and records stopping while any child remains unresolved. After native stops, claim release, child session stop and terminal observations, repeat with a new request/revision to finish the run and release coordination. |
 | `release` | `{"reason":"Durable checkpoint and unresolved child status"}`. Releases only coordination; preserves all child records, sessions, execution claims and scope. A released run requires explicit recovery before reuse. |
@@ -64,13 +64,14 @@ child. The child starts a new tracker session, then is registered and responds t
 the current challenge using its own session:
 
 ```text
-team ack RUN --session CHILD_SESSION --expect-revision N --body-file ack.json --request KEY
+team ack RUN --session CHILD_SESSION --body-file ack.json --request KEY
 ```
 
 ```json
 {
   "launch_id": "L",
   "epoch": 2,
+  "challenge_generation": 1,
   "host_id": "HOST_ID",
   "agent_id": "AGENT_UUID",
   "role": "improver",
@@ -81,8 +82,8 @@ team ack RUN --session CHILD_SESSION --expect-revision N --body-file ack.json --
 ```
 
 Each successful write increments run revision, including child acknowledgements.
-After a host transition, observe unchanged active children again and request
-their new acknowledgements at the current epoch. A stopped tracker session cannot
+ACK does not require shared revision CAS; concurrent children may acknowledge the same snapshot. It requires the current positive launch challenge, current input and observed global epochs, active own registered host/session/identity, exact role/scope/skill contract, and a live coordinator with a usable fence and run status. Omitted or zero challenges are rejected. Coordinator mutations retain revision CAS and fencing.
+After a local host transition, reconcile and acknowledge only that child. Resume/recovery/release/stop still advance the global epoch. Fresh observations and acknowledgements are required after global invalidation. An unrelated terminal child does not invalidate healthy siblings. A stopped tracker session cannot
 acknowledge or resume. Readiness is computed on inspection as well as mutation;
 `status: ready` alone is insufficient, and the `ready` boolean and
 `readiness_issues` are authoritative for the recorded observations.
@@ -137,3 +138,5 @@ A validator launch may reference a ticket in `review` assigned to its implemente
 that assignment does not bind the validator. Worker readiness and assignment
 checks apply to worker launches. Result validation independently checks validator
 authority and identity when accepting or rejecting evidence.
+
+Schema 4 adds zero-initialized launch generations. Migrated readiness is untrusted until fresh observations and acknowledgements establish positive equal generations alongside current observation/acknowledgement epochs. Before adoption, quiesce old writers, preserve a consistent backup, and restart the portal with the matching binary. Schema rejection protects newly opened old readers/writers; already-open old connections are not fenced by migration. Adopt only at the approved milestone in fresh contexts. Source changes do not install or migrate production.

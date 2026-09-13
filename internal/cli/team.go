@@ -14,7 +14,7 @@ func init() { Register("team", Team) }
 // Team only records native-host effects. It never launches or kills processes.
 func Team(ctx context.Context, env Env, args []string) (any, error) {
 	if len(args) == 0 || args[0] == "--help" || args[0] == "help" {
-		return map[string]any{"commands": []string{"start", "resume", "recover", "release", "stop", "launch", "register", "ack", "observe", "ready", "show", "list", "events"}, "usage": "team ACTION [RUN_ID] --session SESSION --request KEY [--coordination TOKEN --expect-revision N --body-file JSON]; team show RUN_ID; team list; team events RUN_ID [--after SEQ]", "reference": "docs/reference/team-commands.md", "contract_version": 2}, nil
+		return map[string]any{"commands": []string{"start", "resume", "recover", "release", "stop", "launch", "register", "ack", "observe", "ready", "show", "list", "events"}, "usage": "team ACTION [RUN_ID] --session SESSION --request KEY [--coordination TOKEN --expect-revision N --body-file JSON]; team show RUN_ID; team list; team events RUN_ID [--after SEQ]", "reference": "docs/reference/team-commands.md", "contract_version": 3}, nil
 	}
 	op := args[0]
 	read := op == "show" || op == "list" || op == "events"
@@ -49,7 +49,7 @@ func Team(ctx context.Context, env Env, args []string) (any, error) {
 		if e = f.Require("session", "request"); e != nil {
 			return nil, e
 		}
-		if op != "start" {
+		if op != "start" && op != "ack" {
 			if e = f.Require("expect-revision"); e != nil {
 				return nil, e
 			}
@@ -83,7 +83,10 @@ func Team(ctx context.Context, env Env, args []string) (any, error) {
 		in.SessionID = f.Values["session"]
 		in.CoordinationID = f.Values["coordination"]
 		in.Human = f.Bools["human"]
-		if op != "start" {
+		if op == "ack" {
+			in.RunID = f.Positionals[0]
+		}
+		if op != "start" && op != "ack" {
 			in.RunID = f.Positionals[0]
 			in.ExpectedRevision, e = strconv.Atoi(f.Values["expect-revision"])
 			if e != nil || in.ExpectedRevision < 1 {

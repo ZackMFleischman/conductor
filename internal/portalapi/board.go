@@ -7,10 +7,11 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"github.com/ZackMFleischman/conductor/internal/store"
 	"sort"
 )
 
-// DBReader reads portal snapshots from an existing schema-3 registry.
+// DBReader reads portal snapshots from an existing current-schema registry.
 type DBReader struct{ DB *sql.DB }
 
 var _ Reader = DBReader{}
@@ -23,7 +24,7 @@ func (r DBReader) beginSnapshot(ctx context.Context) (*sql.Tx, error) {
 		return nil, err
 	}
 	var version int
-	if err = tx.QueryRowContext(ctx, "PRAGMA user_version").Scan(&version); err == nil && version != 3 {
+	if err = tx.QueryRowContext(ctx, "PRAGMA user_version").Scan(&version); err == nil && version != store.SchemaVersion {
 		err = ErrUnsupportedSchema
 	}
 	if err != nil {

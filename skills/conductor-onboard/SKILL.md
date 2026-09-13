@@ -9,7 +9,7 @@ Establish a trustworthy starting point for tracking remaining work. Preserve the
 
 ## Establish scope and access
 
-Use the installed executable and configured data home from the managed bootstrap. Read [work commands](../conductor-work/references/commands.md) for identity, session and retry mechanics. Check `--version` (CLI 0.2, schema 3, skill contract `layers-v1`) and `context --if-registered --json` from the target checkout before repository work.
+Use the installed executable and configured data home from the managed bootstrap. Read [work commands](../conductor-work/references/commands.md) for identity, session and retry mechanics. Check `--version` (CLI 0.2, schema 4, skill contract `layers-v1`) and `context --if-registered --json` from the target checkout before repository work.
 
 An onboarding request authorizes the requested registration and backlog reconciliation, not implementation, team startup, merges, or external tracker changes. A request for advice or a dry run performs reads and returns a proposed mapping without mutations. Honor existing authorization; ask only for missing decisions that affect scope or policy.
 

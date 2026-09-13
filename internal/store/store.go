@@ -19,11 +19,16 @@ var schema string
 //go:embed migrations/*.sql
 var migrations embed.FS
 
-const SchemaVersion = 3
+const SchemaVersion = 4
 
 type Store struct{ DB *sql.DB }
 
 func Open(path string, create bool) (*Store, error) {
+	return open(path, create, nil)
+}
+
+// beforeMigrationLock permits deterministic coverage of an intervening upgrade.
+func open(path string, create bool, beforeMigrationLock func()) (*Store, error) {
 	if !create {
 		if _, err := os.Stat(path); err != nil {
 			return nil, err
@@ -91,6 +96,9 @@ func Open(path string, create bool) (*Store, error) {
 				return fail(fmt.Errorf("migration backup: %w", err))
 			}
 		}
+		if beforeMigrationLock != nil {
+			beforeMigrationLock()
+		}
 		// A table rebuild may be needed to extend CHECK constraints. Validate
 		// every foreign key before committing and restore enforcement afterward.
 		if _, err = db.Exec("PRAGMA foreign_keys=OFF"); err != nil {
@@ -99,7 +107,10 @@ func Open(path string, create bool) (*Store, error) {
 		if _, err = db.Exec("BEGIN IMMEDIATE"); err != nil {
 			return fail(err)
 		}
-		if err = db.QueryRow("PRAGMA user_version").Scan(&version); err == nil {
+		if err = db.QueryRow("PRAGMA user_version").Scan(&version); err == nil && (version < 1 || version > SchemaVersion) {
+			err = fmt.Errorf("unsupported schema version %d", version)
+		}
+		if err == nil {
 			for _, migration := range orderedMigrations {
 				if version >= migration.version {
 					continue
@@ -226,4 +237,5 @@ var orderedMigrations = []struct {
 }{
 	{2, []string{"00-version.sql", "10-workflow.sql", "20-team.sql", "30-retrospective.sql"}},
 	{3, []string{"40-foundation.sql"}},
+	{4, []string{"50-team-challenges.sql"}},
 }

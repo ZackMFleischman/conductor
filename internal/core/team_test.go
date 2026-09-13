@@ -143,7 +143,7 @@ func TestTeamLaunchReadinessRecovery(t *testing.T) {
 	in.HostState = "active"
 	in.Evidence = "native host running"
 	r = f.action("observe", "observe", in)
-	ack := TeamInput{RunID: r.ID, SessionID: f.child, ExpectedRevision: r.Revision, LaunchID: launch, Epoch: r.Epoch, HostID: "fresh-host", Role: "improver", AgentID: f.aid, Scope: r.Profile.Scope, SkillVersion: "2", Checkpoint: "watching reports"}
+	ack := TeamInput{RunID: r.ID, SessionID: f.child, ExpectedRevision: r.Revision, LaunchID: launch, Epoch: r.Epoch, ChallengeGeneration: r.Launches[0].ChallengeGeneration, HostID: "fresh-host", Role: "improver", AgentID: f.aid, Scope: r.Profile.Scope, SkillVersion: "2", Checkpoint: "watching reports"}
 	r = f.action("ack", "ack", ack)
 	r = f.action("ready", "ready", owned(r))
 	if !r.Ready {
@@ -213,7 +213,7 @@ func TestTeamHostChangeRequiresNewChallenge(t *testing.T) {
 	in.HostState = "active"
 	in.Evidence = "native tool reports active"
 	r = f.action("observe", "observe", in)
-	ack := TeamInput{RunID: r.ID, SessionID: f.child, ExpectedRevision: r.Revision, LaunchID: lid, Epoch: r.Epoch, HostID: "host", Role: "improver", AgentID: f.aid, Scope: r.Profile.Scope, SkillVersion: "2", Checkpoint: "ready"}
+	ack := TeamInput{RunID: r.ID, SessionID: f.child, ExpectedRevision: r.Revision, LaunchID: lid, Epoch: r.Epoch, ChallengeGeneration: r.Launches[0].ChallengeGeneration, HostID: "host", Role: "improver", AgentID: f.aid, Scope: r.Profile.Scope, SkillVersion: "2", Checkpoint: "ready"}
 	r = f.action("ack", "ack", ack)
 	r = f.action("ready", "ready", owned(r))
 	in = owned(r)

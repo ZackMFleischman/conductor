@@ -23,38 +23,41 @@ type TeamProfile struct {
 	StopConditions     string   `json:"stop_conditions"`
 }
 type TeamInput struct {
-	RunID            string       `json:"run_id,omitempty"`
-	SessionID        string       `json:"session_id"`
-	CoordinationID   string       `json:"coordination_id,omitempty"`
-	ExpectedRevision int          `json:"expected_revision,omitempty"`
-	Profile          *TeamProfile `json:"profile,omitempty"`
-	LaunchID         string       `json:"launch_id,omitempty"`
-	Role             string       `json:"role,omitempty"`
-	AgentID          string       `json:"agent_id,omitempty"`
-	TicketID         string       `json:"ticket_id,omitempty"`
-	HostID           string       `json:"host_id,omitempty"`
-	ChildSessionID   string       `json:"child_session_id,omitempty"`
-	HostState        string       `json:"host_state,omitempty"`
-	Epoch            int          `json:"epoch,omitempty"`
-	Scope            string       `json:"scope,omitempty"`
-	SkillVersion     string       `json:"skill_version,omitempty"`
-	Checkpoint       string       `json:"checkpoint,omitempty"`
-	Evidence         string       `json:"evidence,omitempty"`
-	Reason           string       `json:"reason,omitempty"`
-	Human            bool         `json:"human,omitempty"`
+	ChallengeGeneration int          `json:"challenge_generation,omitempty"`
+	RunID               string       `json:"run_id,omitempty"`
+	SessionID           string       `json:"session_id"`
+	CoordinationID      string       `json:"coordination_id,omitempty"`
+	ExpectedRevision    int          `json:"expected_revision,omitempty"`
+	Profile             *TeamProfile `json:"profile,omitempty"`
+	LaunchID            string       `json:"launch_id,omitempty"`
+	Role                string       `json:"role,omitempty"`
+	AgentID             string       `json:"agent_id,omitempty"`
+	TicketID            string       `json:"ticket_id,omitempty"`
+	HostID              string       `json:"host_id,omitempty"`
+	ChildSessionID      string       `json:"child_session_id,omitempty"`
+	HostState           string       `json:"host_state,omitempty"`
+	Epoch               int          `json:"epoch,omitempty"`
+	Scope               string       `json:"scope,omitempty"`
+	SkillVersion        string       `json:"skill_version,omitempty"`
+	Checkpoint          string       `json:"checkpoint,omitempty"`
+	Evidence            string       `json:"evidence,omitempty"`
+	Reason              string       `json:"reason,omitempty"`
+	Human               bool         `json:"human,omitempty"`
 }
 type TeamLaunch struct {
-	ID                string `json:"launch_id"`
-	Role              string `json:"role"`
-	AgentID           string `json:"agent_id"`
-	TicketID          string `json:"ticket_id,omitempty"`
-	HostID            string `json:"host_id,omitempty"`
-	SessionID         string `json:"session_id,omitempty"`
-	HostState         string `json:"host_state"`
-	ObservedEpoch     int    `json:"observed_epoch"`
-	AcknowledgedEpoch int    `json:"acknowledged_epoch"`
-	Checkpoint        string `json:"checkpoint"`
-	Evidence          string `json:"evidence"`
+	ChallengeGeneration    int    `json:"challenge_generation"`
+	AcknowledgedGeneration int    `json:"acknowledged_generation"`
+	ID                     string `json:"launch_id"`
+	Role                   string `json:"role"`
+	AgentID                string `json:"agent_id"`
+	TicketID               string `json:"ticket_id,omitempty"`
+	HostID                 string `json:"host_id,omitempty"`
+	SessionID              string `json:"session_id,omitempty"`
+	HostState              string `json:"host_state"`
+	ObservedEpoch          int    `json:"observed_epoch"`
+	AcknowledgedEpoch      int    `json:"acknowledged_epoch"`
+	Checkpoint             string `json:"checkpoint"`
+	Evidence               string `json:"evidence"`
 }
 type TeamRun struct {
 	ID                   string       `json:"run_id"`
@@ -143,13 +146,13 @@ func readTeam(ctx context.Context, c teamReader, p, id string) (TeamRun, error) 
 	if e = json.Unmarshal([]byte(profile), &r.Profile); e != nil {
 		return r, e
 	}
-	rows, e := c.QueryContext(ctx, "SELECT id,role,agent_id,COALESCE(ticket_id,''),COALESCE(host_id,''),COALESCE(session_id,''),host_state,observed_epoch,acknowledged_epoch,checkpoint,evidence FROM team_launches WHERE project_id=? AND run_id=? ORDER BY created_at,id", p, id)
+	rows, e := c.QueryContext(ctx, "SELECT id,role,agent_id,COALESCE(ticket_id,''),COALESCE(host_id,''),COALESCE(session_id,''),host_state,observed_epoch,acknowledged_epoch,challenge_generation,acknowledged_generation,checkpoint,evidence FROM team_launches WHERE project_id=? AND run_id=? ORDER BY created_at,id", p, id)
 	if e != nil {
 		return r, e
 	}
 	for rows.Next() {
 		var l TeamLaunch
-		if e = rows.Scan(&l.ID, &l.Role, &l.AgentID, &l.TicketID, &l.HostID, &l.SessionID, &l.HostState, &l.ObservedEpoch, &l.AcknowledgedEpoch, &l.Checkpoint, &l.Evidence); e != nil {
+		if e = rows.Scan(&l.ID, &l.Role, &l.AgentID, &l.TicketID, &l.HostID, &l.SessionID, &l.HostState, &l.ObservedEpoch, &l.AcknowledgedEpoch, &l.ChallengeGeneration, &l.AcknowledgedGeneration, &l.Checkpoint, &l.Evidence); e != nil {
 			rows.Close()
 			return r, e
 		}
@@ -182,7 +185,7 @@ func readTeam(ctx context.Context, c teamReader, p, id string) (TeamRun, error) 
 			continue
 		}
 		r.OccupiedSlots++
-		healthy := l.HostState == "active" && l.ObservedEpoch == r.Epoch && l.AcknowledgedEpoch == r.Epoch && l.SessionID != ""
+		healthy := l.HostState == "active" && l.ObservedEpoch == r.Epoch && l.AcknowledgedEpoch == r.Epoch && l.ChallengeGeneration > 0 && l.AcknowledgedGeneration == l.ChallengeGeneration && l.SessionID != ""
 		if l.SessionID != "" {
 			s, e := ReadSession(ctx, c, p, l.SessionID)
 			if e != nil {
@@ -258,7 +261,7 @@ func (s *Service) TeamAction(ctx context.Context, p, op, request string, in Team
 					return nil, Fail("COORDINATION_REVOKED", "token belongs to another run")
 				}
 			}
-			if in.ExpectedRevision != r.Revision {
+			if op != "ack" && in.ExpectedRevision != r.Revision {
 				return nil, Fail("REVISION_CONFLICT", "team revision changed; inspect and reconcile")
 			}
 			if r.Status == "stopped" {
@@ -457,13 +460,16 @@ func updateTeamChildTx(ctx context.Context, c *sql.Conn, p string, r TeamRun, op
 		_, e = c.ExecContext(ctx, "UPDATE team_launches SET host_id=?,session_id=? WHERE id=?", in.HostID, in.ChildSessionID, l.ID)
 		return e
 	case "ack":
-		if r.CoordinationID == "" || r.Status == "stopping" || in.Epoch != r.Epoch {
+		if r.CoordinationID == "" || r.Status == "stopping" || r.Status == "released" || in.Epoch != r.Epoch || l.ObservedEpoch != r.Epoch || l.HostState != "active" || l.ChallengeGeneration <= 0 || in.ChallengeGeneration != l.ChallengeGeneration {
 			return Fail("STALE_READINESS", "readiness challenge is no longer current")
+		}
+		if e := CheckTeamCoordinatorTx(ctx, c, p, r.CoordinatorSessionID, r.CoordinationID); e != nil {
+			return e
 		}
 		if in.SessionID != l.SessionID || in.HostID != l.HostID || in.AgentID != l.AgentID || in.Role != l.Role || in.Scope != r.Profile.Scope || in.SkillVersion != r.Profile.SkillVersion || strings.TrimSpace(in.Checkpoint) == "" {
 			return Fail("CHILD_MISMATCH", "acknowledgement must match run, role, identity, registered host/session, scope and skill version with a checkpoint")
 		}
-		_, e := c.ExecContext(ctx, "UPDATE team_launches SET acknowledged_epoch=?,checkpoint=? WHERE id=?", r.Epoch, in.Checkpoint, l.ID)
+		_, e := c.ExecContext(ctx, "UPDATE team_launches SET acknowledged_epoch=?,acknowledged_generation=?,checkpoint=? WHERE id=?", r.Epoch, l.ChallengeGeneration, in.Checkpoint, l.ID)
 		return e
 	case "observe":
 		if strings.TrimSpace(in.Evidence) == "" {
@@ -489,18 +495,14 @@ func updateTeamChildTx(ctx context.Context, c *sql.Conn, p string, r TeamRun, op
 				}
 			}
 		}
-		ack := l.AcknowledgedEpoch
-		epoch := r.Epoch
-		if in.HostState != l.HostState {
-			ack = 0
-			epoch++
-			// A host transition invalidates prior readiness challenges. Preserve
-			// stopping state; reconciliation never silently restarts dispatch.
-			if _, e := c.ExecContext(ctx, "UPDATE team_runs SET epoch=?,status=CASE WHEN status='ready' THEN 'degraded' ELSE status END WHERE id=?", epoch, r.ID); e != nil {
-				return e
-			}
+		ack, generation, acknowledged := l.AcknowledgedEpoch, l.ChallengeGeneration, l.AcknowledgedGeneration
+		if in.HostState != l.HostState || l.ObservedEpoch != r.Epoch || (in.HostState == "active" && generation == 0) {
+			ack, acknowledged = 0, 0
+			generation++
 		}
-		_, e := c.ExecContext(ctx, "UPDATE team_launches SET host_state=?,observed_epoch=?,acknowledged_epoch=?,evidence=? WHERE id=?", in.HostState, epoch, ack, in.Evidence, l.ID)
+		// Local evidence invalidates only this launch; global authority changes
+		// still require every launch to observe and acknowledge the new epoch.
+		_, e := c.ExecContext(ctx, "UPDATE team_launches SET host_state=?,observed_epoch=?,acknowledged_epoch=?,challenge_generation=?,acknowledged_generation=?,evidence=? WHERE id=?", in.HostState, r.Epoch, ack, generation, acknowledged, in.Evidence, l.ID)
 		return e
 	}
 	return nil

@@ -2,6 +2,7 @@ package cli_test
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/ZackMFleischman/conductor/internal/testkit"
 	"os"
 	"path/filepath"
@@ -34,4 +35,39 @@ func TestTeamCLIContractAndReadOnly(t *testing.T) {
 	if res["ok"] == true {
 		t.Fatal("unknown field accepted")
 	}
+}
+
+func TestTeamCLIAcknowledgementWithoutRevision(t *testing.T) {
+	c := testkit.New(t)
+	testkit.MustData(t, c.Run("init", "--prefix", "APP", "--request", "init"))
+	testkit.MustData(t, c.Run("agent", "register", "--name", "coord", "--request", "coord"))
+	agent := testkit.MustData(t, c.Run("agent", "register", "--name", "child", "--request", "child"))
+	coord := testkit.MustData(t, c.Run("session", "start", "--agent", "coord", "--request", "cs"))["session_id"].(string)
+	child := testkit.MustData(t, c.Run("session", "start", "--agent", "child", "--request", "ws"))["session_id"].(string)
+	file := filepath.Join(t.TempDir(), "body.json")
+	write := func(v any) {
+		b, _ := json.Marshal(v)
+		if e := os.WriteFile(file, b, 0600); e != nil {
+			t.Fatal(e)
+		}
+	}
+	write(map[string]any{"profile": map[string]any{"scope": "scope", "approval_reference": "approved", "skill_version": "layers-v1", "host": "fixture", "host_limit": 2, "child_limit": 1, "capabilities": []string{"spawn", "status"}, "polling_seconds": 1, "delivery_policy": "worktree", "stop_conditions": "done"}})
+	r := testkit.MustData(t, c.Run("team", "start", "--session", coord, "--request", "start", "--body-file", file))
+	action := func(op string, body any) {
+		write(body)
+		r = testkit.MustData(t, c.Run("team", op, r["run_id"].(string), "--session", coord, "--coordination", r["coordination_id"].(string), "--expect-revision", fmt.Sprint(r["revision"]), "--request", op, "--body-file", file))
+	}
+	action("launch", map[string]any{"role": "improver", "agent_id": agent["agent_id"]})
+	launch := r["launches"].([]any)[0].(map[string]any)["launch_id"]
+	action("register", map[string]any{"launch_id": launch, "host_id": "host", "child_session_id": child})
+	action("observe", map[string]any{"launch_id": launch, "host_state": "active", "evidence": "native active"})
+	ack := map[string]any{"launch_id": launch, "epoch": r["epoch"], "host_id": "host", "agent_id": agent["agent_id"], "role": "improver", "scope": "scope", "skill_version": "layers-v1", "checkpoint": "ready"}
+	write(ack)
+	res := c.Run("team", "ack", r["run_id"].(string), "--session", child, "--request", "zero", "--body-file", file)
+	if res["ok"] == true {
+		t.Fatal("missing generation accepted")
+	}
+	ack["challenge_generation"] = r["launches"].([]any)[0].(map[string]any)["challenge_generation"]
+	write(ack)
+	testkit.MustData(t, c.Run("team", "ack", r["run_id"].(string), "--session", child, "--request", "ack", "--body-file", file))
 }

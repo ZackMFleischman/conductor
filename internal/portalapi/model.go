@@ -4,12 +4,14 @@ package portalapi
 import (
 	"context"
 	"errors"
+	"fmt"
+	"github.com/ZackMFleischman/conductor/internal/store"
 )
 
 var (
 	ErrNotFound          = errors.New("project not found")
 	ErrInvalidData       = errors.New("invalid board data")
-	ErrUnsupportedSchema = errors.New("portal requires schema 3")
+	ErrUnsupportedSchema = fmt.Errorf("portal requires schema %d", store.SchemaVersion)
 )
 
 type Project struct {

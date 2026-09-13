@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io/fs"
 	"net"
 	"net/http"
@@ -29,7 +30,7 @@ func Serve(ctx context.Context, env Env, args []string) (any, error) {
 		return nil, err
 	}
 	if f.Bools["help"] {
-		return map[string]any{"usage": "conductor --home PATH serve [--listen 127.0.0.1:7331] [--assets DIR]", "description": "Read-only local portal API and live event stream; requires existing schema 3 registry"}, nil
+		return map[string]any{"usage": "conductor --home PATH serve [--listen 127.0.0.1:7331] [--assets DIR]", "description": fmt.Sprintf("Read-only local portal API and live event stream; requires existing schema %d registry", store.SchemaVersion)}, nil
 	}
 	if f.Values["project"] != "" {
 		return nil, core.Fail("USAGE", "serve selects projects through the API; omit --project")
@@ -59,8 +60,8 @@ func Serve(ctx context.Context, env Env, args []string) (any, error) {
 	if err = db.DB.QueryRowContext(ctx, "PRAGMA user_version").Scan(&version); err != nil {
 		return nil, err
 	}
-	if version != 3 {
-		return nil, core.Fail("REGISTRY_UNAVAILABLE", "portal requires an existing schema 3 registry; upgrade with the CLI first")
+	if version != store.SchemaVersion {
+		return nil, core.Fail("REGISTRY_UNAVAILABLE", fmt.Sprintf("portal requires an existing schema %d registry; upgrade with the CLI first", store.SchemaVersion))
 	}
 	listener, err := net.Listen("tcp", address)
 	if err != nil {

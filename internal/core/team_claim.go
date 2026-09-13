@@ -46,7 +46,7 @@ func CheckTeamClaimTx(ctx context.Context, c *sql.Conn, projectID, ticketID, ses
 		if l.Role != "worker" || l.TicketID != ticketID {
 			return Fail("TEAM_ASSIGNMENT", "managed execution requires the worker role and exact launch ticket")
 		}
-		if !r.Ready || l.HostID == "" || l.HostState != "active" || l.ObservedEpoch != r.Epoch || l.AcknowledgedEpoch != r.Epoch {
+		if !r.Ready || l.HostID == "" || l.HostState != "active" || l.ObservedEpoch != r.Epoch || l.AcknowledgedEpoch != r.Epoch || l.ChallengeGeneration <= 0 || l.AcknowledgedGeneration != l.ChallengeGeneration {
 			return Fail("TEAM_NOT_READY", "managed execution requires a usable ready run and current acknowledged active host/session")
 		}
 		var attempts int
