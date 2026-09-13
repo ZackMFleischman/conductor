@@ -25,8 +25,9 @@
     "requested_output": {
       "format": "JSON",
       "fields": {
-        "applicable_validated_corrections": "array of objects containing source_report_ids, applies_to, instruction, limitations",
-        "excluded_records": "array of objects containing record_id and reason"
+        "selected": "array of objects containing record_id, source_report_ids, instructions, and commands; commands is an array of objects containing cmd, workdir, and sandbox_permissions, and stays empty when the assignment supplies no authorized subcommand",
+        "excluded": "array of objects containing record_id and reason",
+        "authority_and_limits": "string describing the authority boundary and prohibited scope expansion"
       },
       "constraints": "Emit only the records selected by applying the current repository guidance to these facts. Use concrete invocation values for this assignment. Do not copy all facts, emit placeholders, or include an answer key/pass flag."
     }

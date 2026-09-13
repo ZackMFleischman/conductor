@@ -1,9 +1,23 @@
-param([Parameter(Mandatory = $true)][string]$Response)
+param(
+    [Parameter(Mandatory = $true)][string]$Response,
+    [string]$Fixture = (Join-Path $PSScriptRoot 'correction-propagation-mixed.json')
+)
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 
+$fixtureData = Get-Content -Raw -LiteralPath $Fixture | ConvertFrom-Json
+$contractFields = @($fixtureData.assignment.requested_output.fields.PSObject.Properties.Name)
+$requiredContractFields = @('selected', 'excluded', 'authority_and_limits')
+if ((($contractFields | Sort-Object) -join ',') -ne (($requiredContractFields | Sort-Object) -join ',')) {
+    throw "fixture/scorer field contract mismatch: $($contractFields -join ',')"
+}
+
 $result = Get-Content -Raw -LiteralPath $Response | ConvertFrom-Json
+$responseFields = @($result.PSObject.Properties.Name)
+foreach ($field in $requiredContractFields) {
+    if ($responseFields -notcontains $field) { throw "response missing contracted field: $field" }
+}
 $selected = @($result.selected)
 $excluded = @($result.excluded)
 $failures = [System.Collections.Generic.List[string]]::new()

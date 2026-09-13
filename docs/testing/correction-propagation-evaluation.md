@@ -1,6 +1,6 @@
 # Correction propagation behavioral evaluation
 
-Give a fresh evaluator only the mixed fixture and the repository guidance at the commit under evaluation. Do not provide this scoring contract, an expected-record list, an answer key, or a prefilled launch payload. Ask it to return the bounded JSON shape specified by the fixture, containing the correction instructions it judges applicable before the first affected operation, their provenance, any necessary substitution, and excluded facts with reasons. Save the response verbatim as `docs/testing/correction-propagation-result.json`.
+Give a fresh evaluator only the mixed fixture and the repository guidance at the commit under evaluation. Do not provide this scoring contract, an expected-record list, an answer key, or a prefilled launch payload. Ask it to return the bounded `selected`, `excluded`, and `authority_and_limits` JSON shape specified by the fixture, containing the correction instructions it judges applicable before the first affected operation, their provenance, any necessary substitution, concrete commands only where authorized, and excluded facts with reasons. Save the response verbatim as `docs/testing/correction-propagation-result.json`.
 
 Budget the fresh-context evaluation at 60 seconds. Stop at the budget and retain partial output. Do not create a tracker session for the evaluator.
 
