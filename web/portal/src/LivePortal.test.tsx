@@ -17,12 +17,72 @@ const snapshot = (id: string, title: string) => ({ revision: 'r1', project: proj
 const response = (body: unknown) => new Response(JSON.stringify(body), { status: 200 });
 let fetcher: ReturnType<typeof vi.fn>;
 beforeEach(() => {
+  history.replaceState(null, '', '/');
   Stream.all = [];
   vi.stubGlobal('EventSource', Stream);
   fetcher = vi.fn(async (url: string) => response(url === '/api/v1/projects' ? { projects: [project('a'), project('b')] } : snapshot(url.includes('/a/') ? 'a' : 'b', 'First')));
   vi.stubGlobal('fetch', fetcher);
 });
 afterEach(() => { vi.unstubAllGlobals(); vi.useRealTimers(); });
+
+it('initializes the selected project from the URL and preserves unrelated URL state', async () => {
+  history.replaceState(null, '', '/?project=b&keep=1#anchor');
+  render(<LivePortal />);
+  expect(await screen.findByRole('combobox', { name: 'Project' })).toHaveValue('b');
+  await waitFor(() => expect(Stream.all[0]?.url).toBe('/api/v1/projects/b/events'));
+  expect(location.search).toBe('?project=b&keep=1');
+  expect(location.hash).toBe('#anchor');
+});
+
+it.each([
+  ['unknown', '/?project=missing', 'Unavailable project: missing'],
+  ['empty', '/?project=', 'Unavailable project: (empty)'],
+  ['duplicate', '/?project=a&project=b', 'Unavailable project: a'],
+])('shows recovery for an %s explicit project without starting a board source', async (_case, url, label) => {
+  history.replaceState(null, '', url);
+  const { unmount } = render(<LivePortal />);
+  expect(await screen.findByRole('alert')).toHaveTextContent(/choose a registered project/i);
+  expect((screen.getByRole('option', { name: label }) as HTMLOptionElement).selected).toBe(true);
+  expect(fetcher.mock.calls.filter(([requestUrl]) => requestUrl !== '/api/v1/projects')).toHaveLength(0);
+  expect(Stream.all).toHaveLength(0);
+  unmount();
+});
+
+it('pushes selector changes into history and retains the URL selection on remount', async () => {
+  const user = userEvent.setup();
+  history.replaceState(null, '', '/?keep=1#anchor');
+  const first = render(<LivePortal />);
+  const select = await screen.findByRole('combobox', { name: 'Project' });
+  expect(select).toHaveValue('a');
+  expect(location.search).toBe('?keep=1&project=a');
+  await user.selectOptions(select, 'b');
+  expect(location.search).toBe('?keep=1&project=b');
+  expect(location.hash).toBe('#anchor');
+  await waitFor(() => expect(Stream.all.at(-1)?.url).toBe('/api/v1/projects/b/events'));
+  first.unmount();
+  render(<LivePortal />);
+  expect(await screen.findByRole('combobox', { name: 'Project' })).toHaveValue('b');
+  expect(Stream.all.at(-1)?.url).toBe('/api/v1/projects/b/events');
+});
+
+it('uses back and forward popstate URLs and rejects a project removed from the loaded inventory', async () => {
+  history.replaceState(null, '', '/?project=a');
+  render(<LivePortal />);
+  expect(await screen.findByRole('combobox', { name: 'Project' })).toHaveValue('a');
+  history.pushState(null, '', '/?project=b');
+  window.dispatchEvent(new PopStateEvent('popstate'));
+  await waitFor(() => expect(screen.getByRole('combobox', { name: 'Project' })).toHaveValue('b'));
+  await waitFor(() => expect(Stream.all.at(-1)?.url).toBe('/api/v1/projects/b/events'));
+  history.replaceState(null, '', '/?project=a');
+  window.dispatchEvent(new PopStateEvent('popstate'));
+  await waitFor(() => expect(screen.getByRole('combobox', { name: 'Project' })).toHaveValue('a'));
+  await waitFor(() => expect(Stream.all.at(-1)?.url).toBe('/api/v1/projects/a/events'));
+  history.pushState(null, '', '/?project=removed');
+  window.dispatchEvent(new PopStateEvent('popstate'));
+  expect(await screen.findByRole('alert')).toHaveTextContent(/choose a registered project/i);
+  expect(Stream.all.every(stream => stream.closed)).toBe(true);
+  expect(Stream.all).toHaveLength(3);
+});
 
 it('loads live projects and refetches on invalidation and reconnect', async () => {
   render(<LivePortal />);
