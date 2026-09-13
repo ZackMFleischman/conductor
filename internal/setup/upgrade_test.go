@@ -91,6 +91,176 @@ func TestUpgradeDoesNotOverwriteEditedSkill(t *testing.T) {
 	}
 }
 
+func TestUpgradePreservesCanonicalLocalAddition(t *testing.T) {
+	o := fixture(t)
+	o.Agents = []string{"codex"}
+	o.SkillFiles["SKILL.md"] = []byte("base\n")
+	initial, err := Plan(o)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = Apply(initial); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(o.UserHome, ".agents", "skills", "conductor-work", "SKILL.md")
+	local := []byte("base\ncomment guidance\n")
+	put(t, path, local)
+	o.SkillFiles["SKILL.md"] = []byte("base\ncomment guidance\nnew canonical guidance\n")
+	edits, err := Plan(o)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(get(t, path), local) {
+		t.Fatal("preview changed local skill")
+	}
+	var skill Edit
+	for _, e := range edits {
+		if e.Path == path {
+			skill = e
+		}
+	}
+	if skill.Description != "Safely merge preserved Conductor skill guidance" {
+		t.Fatalf("missing merge preview: %#v", skill)
+	}
+	if skill.BeforeHash != digest(local) {
+		t.Fatalf("merge preview hash = %q, want %q", skill.BeforeHash, digest(local))
+	}
+	if err = Apply(edits[:1]); err != nil {
+		t.Fatal(err)
+	}
+	edits, err = Plan(o)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = Apply(edits); err != nil {
+		t.Fatal(err)
+	}
+	if got := get(t, path); !bytes.Equal(got, o.SkillFiles["SKILL.md"]) {
+		t.Fatalf("canonical merge lost content: %q", got)
+	}
+	if edits, err = Plan(o); err != nil || len(edits) != 0 {
+		t.Fatalf("upgrade not idempotent: %v %#v", err, edits)
+	}
+}
+
+func TestUpgradeAdoptsOwnershipWhenCurrentAlreadyEqualsCanonical(t *testing.T) {
+	o := fixture(t)
+	o.Agents = []string{"codex"}
+	o.SkillFiles["SKILL.md"] = []byte("base\n")
+	initial, err := Plan(o)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = Apply(initial); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(o.UserHome, ".agents", "skills", "conductor-work", "SKILL.md")
+	next := []byte("base\nreviewed guidance\n")
+	put(t, path, next)
+	o.SkillFiles["SKILL.md"] = next
+	edits, err := Plan(o)
+	if err != nil {
+		t.Fatalf("current canonical bytes should permit ownership upgrade: %v", err)
+	}
+	for _, e := range edits {
+		if e.Path == path {
+			t.Fatalf("ownership upgrade should not rewrite unchanged canonical skill: %#v", e)
+		}
+	}
+	if err = Apply(edits); err != nil {
+		t.Fatal(err)
+	}
+	if got := get(t, path); !bytes.Equal(got, next) {
+		t.Fatalf("ownership upgrade changed canonical skill: %q", got)
+	}
+	if edits, err = Plan(o); err != nil || len(edits) != 0 {
+		t.Fatalf("ownership upgrade not idempotent: %v %#v", err, edits)
+	}
+}
+
+func TestUpgradePreservesCanonicalAdditionsAcrossSkillFiles(t *testing.T) {
+	o := fixture(t)
+	o.Agents = []string{"codex"}
+	keys := []string{"SKILL.md", "conductor-plan/SKILL.md", "conductor-worker/SKILL.md", "conductor-orchestrator/SKILL.md", "conductor-retrospective/SKILL.md", "conductor-workflow-improver/SKILL.md"}
+	for _, key := range keys {
+		o.SkillFiles[key] = []byte("base\n")
+	}
+	initial, err := Plan(o)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = Apply(initial); err != nil {
+		t.Fatal(err)
+	}
+	for _, key := range keys {
+		path, err := skillDestination(key, o, "codex")
+		if err != nil {
+			t.Fatal(err)
+		}
+		put(t, path, []byte("base\ncomment guidance\n"))
+		o.SkillFiles[key] = []byte("base\ncomment guidance\nnew canonical guidance\n")
+	}
+	edits, err := Plan(o)
+	if err != nil {
+		t.Fatal(err)
+	}
+	merges := 0
+	for _, e := range edits {
+		if e.Description == "Safely merge preserved Conductor skill guidance" {
+			merges++
+		}
+	}
+	if merges != len(keys) {
+		t.Fatalf("merge previews = %d, want %d", merges, len(keys))
+	}
+	if err = Apply(edits); err != nil {
+		t.Fatal(err)
+	}
+	for _, key := range keys {
+		path, err := skillDestination(key, o, "codex")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := get(t, path); !bytes.Equal(got, o.SkillFiles[key]) {
+			t.Fatalf("%s did not retain canonical addition: %q", key, got)
+		}
+	}
+}
+
+func TestUpgradeRejectsUnrepresentedOrOverlappingLocalSkillEdits(t *testing.T) {
+	for name, tc := range map[string]struct {
+		base  []byte
+		local []byte
+		next  []byte
+	}{
+		"unrepresented": {base: []byte("base\n"), local: []byte("base\nlocal-only\n"), next: []byte("base\nnew canonical guidance\n")},
+		"overlapping":   {base: []byte("base\nold guidance\n"), local: []byte("base\nlocal rewrite\n"), next: []byte("base\ncanonical rewrite\n")},
+		"deletion":      {base: []byte("base\nold guidance\n"), local: []byte("base\n"), next: []byte("base\nold guidance\nnew canonical guidance\n")},
+	} {
+		t.Run(name, func(t *testing.T) {
+			o := fixture(t)
+			o.Agents = []string{"codex"}
+			o.SkillFiles["SKILL.md"] = tc.base
+			initial, err := Plan(o)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err = Apply(initial); err != nil {
+				t.Fatal(err)
+			}
+			path := filepath.Join(o.UserHome, ".agents", "skills", "conductor-work", "SKILL.md")
+			put(t, path, tc.local)
+			o.SkillFiles["SKILL.md"] = tc.next
+			if _, err = Plan(o); err == nil {
+				t.Fatal("expected conflict")
+			}
+			if got := get(t, path); !bytes.Equal(got, tc.local) {
+				t.Fatalf("preview overwrote local skill: %q", got)
+			}
+		})
+	}
+}
+
 func TestUpgradeAddsRootAfterUserEnablesElevatedSandbox(t *testing.T) {
 	o := fixture(t)
 	o.Platform = "windows"

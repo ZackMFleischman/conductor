@@ -102,7 +102,7 @@ Quiet sessions never expire automatically. A stopped session cannot resume; star
 
 ## Upgrade or remove integration
 
-Replace the executable at its stable installed path, then rerun setup. Setup upgrades unchanged owned skill files in place and adds newly bundled skills. It journals the old and new bytes before changing files so interrupted upgrades can be repaired. User-edited files remain conflicts, not silent overwrites. Preview before applying and start fresh host sessions afterward:
+Replace the executable at its stable installed path, then rerun setup. Setup upgrades unchanged owned skill files in place and adds newly bundled skills. It journals the old and new bytes before changing files so interrupted upgrades can be repaired. A preview may safely merge local line additions only when the new canonical file already contains every addition in the same order; the preview identifies that merge. Other user edits remain conflicts, not silent overwrites. Preview before applying and start fresh host sessions afterward:
 
 ```powershell
 & $Conductor setup --agents codex,claude --json
