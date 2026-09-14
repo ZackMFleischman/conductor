@@ -104,6 +104,8 @@ func (s *Service) EditTicketMetadata(ctx context.Context, r store.Request, in Wo
 		if e != nil {
 			return nil, e
 		}
+		// Events store a UUID foreign key, while callers may use the supported display key.
+		in.TicketID = v.ID
 		if v.Workflow != nil {
 			return nil, Fail("WORKFLOW_TICKET", "metadata-only edits require a plain ticket")
 		}

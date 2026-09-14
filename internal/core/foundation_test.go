@@ -164,7 +164,7 @@ func TestFoundationMetadataOnlyEditPreservesAcceptedTicket(t *testing.T) {
 	if v.State != "done" {
 		t.Fatal(v)
 	}
-	raw, e = f.s.EditTicketMetadata(f.ctx, f.req(), WorkflowInput{ProjectID: f.p, TicketID: v.ID, SessionID: f.reviewer, ExpectedRevision: v.Revision, ParentID: parent.ID, Kind: "bug", Reason: "correct grouping"})
+	raw, e = f.s.EditTicketMetadata(f.ctx, f.req(), WorkflowInput{ProjectID: f.p, TicketID: v.DisplayKey, SessionID: f.reviewer, ExpectedRevision: v.Revision, ParentID: parent.ID, Kind: "bug", Reason: "correct grouping"})
 	if e != nil {
 		t.Fatal(e)
 	}
