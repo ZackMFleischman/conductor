@@ -38,14 +38,59 @@ func skillDestination(key string, o Options, host string) (string, error) {
 
 // preservedAddition accepts only line additions that the next canonical file
 // already contains in the same order. CRLF and LF terminators are equivalent;
-// replacements and deletions remain owned content conflicts, so a preview
-// cannot silently overwrite a local edit.
+// replacements and deletions remain owned content conflicts, while unrelated
+// canonical changes to baseline lines do not hide a preserved local addition.
 func preservedAddition(base, current, next []byte) bool {
 	if bytes.Equal(base, current) || bytes.Equal(current, next) {
 		return false
 	}
-	return lineSubsequence(bytes.SplitAfter(base, []byte("\n")), bytes.SplitAfter(current, []byte("\n"))) &&
-		lineSubsequence(bytes.SplitAfter(current, []byte("\n")), bytes.SplitAfter(next, []byte("\n")))
+	baseLines := bytes.SplitAfter(base, []byte("\n"))
+	additions, ok := addedLines(baseLines, bytes.SplitAfter(current, []byte("\n")))
+	return ok && lineSubsequence(additions, unmatchedLines(baseLines, bytes.SplitAfter(next, []byte("\n"))))
+}
+
+func addedLines(base, current [][]byte) ([][]byte, bool) {
+	index := 0
+	var additions [][]byte
+	for _, line := range current {
+		if index < len(base) && sameLine(base[index], line) {
+			index++
+			continue
+		}
+		additions = append(additions, line)
+	}
+	return additions, index == len(base)
+}
+
+func unmatchedLines(base, next [][]byte) [][]byte {
+	common := make([][]int, len(base)+1)
+	for i := range common {
+		common[i] = make([]int, len(next)+1)
+	}
+	for i := len(base) - 1; i >= 0; i-- {
+		for j := len(next) - 1; j >= 0; j-- {
+			if sameLine(base[i], next[j]) {
+				common[i][j] = common[i+1][j+1] + 1
+			} else if common[i+1][j] >= common[i][j+1] {
+				common[i][j] = common[i+1][j]
+			} else {
+				common[i][j] = common[i][j+1]
+			}
+		}
+	}
+	var unmatched [][]byte
+	for i, j := 0, 0; j < len(next); {
+		if i < len(base) && sameLine(base[i], next[j]) {
+			i++
+			j++
+		} else if i < len(base) && common[i+1][j] >= common[i][j+1] {
+			i++
+		} else {
+			unmatched = append(unmatched, next[j])
+			j++
+		}
+	}
+	return unmatched
 }
 
 func lineSubsequence(need, have [][]byte) bool {

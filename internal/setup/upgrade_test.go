@@ -192,6 +192,56 @@ func TestUpgradePreservesCanonicalLocalAdditionAcrossLineEndings(t *testing.T) {
 	}
 }
 
+func TestUpgradePreservesLocalGuidanceWhileCanonicalParagraphsChange(t *testing.T) {
+	o := fixture(t)
+	o.Agents = []string{"codex"}
+	base := []byte("heading\nold model and concurrency paragraph\nold workflow fixer paragraph\nclosing\n")
+	o.SkillFiles["SKILL.md"] = base
+	initial, err := Plan(o)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = Apply(initial); err != nil {
+		t.Fatal(err)
+	}
+
+	path := filepath.Join(o.UserHome, ".agents", "skills", "conductor-work", "SKILL.md")
+	local := []byte("heading\nold model and concurrency paragraph\nold workflow fixer paragraph\nclosing\n\r\nApply ticket comment discipline.\r\n")
+	next := []byte("heading\nchoose a supported model and effort for each task\nthe dedicated workflow fixer takes one ready remedy at a time\nclosing\n\nApply ticket comment discipline.\n")
+	put(t, path, local)
+	o.SkillFiles["SKILL.md"] = next
+
+	edits, err := Plan(o)
+	if err != nil {
+		t.Fatalf("preserved mixed-EOL guidance should survive canonical paragraph rewrites: %v", err)
+	}
+	if got := get(t, path); !bytes.Equal(got, local) {
+		t.Fatalf("preview changed installed bytes: %q", got)
+	}
+	var skill *Edit
+	for i := range edits {
+		if edits[i].Path == path {
+			skill = &edits[i]
+			break
+		}
+	}
+	if skill == nil || skill.Description != "Safely merge preserved Conductor skill guidance" {
+		t.Fatalf("missing preserved-guidance preview: %#v", edits)
+	}
+	if skill.BeforeHash != digest(local) {
+		t.Fatalf("preview hash = %q, want %q", skill.BeforeHash, digest(local))
+	}
+	if err = Apply(edits); err != nil {
+		t.Fatal(err)
+	}
+	if got := get(t, path); !bytes.Equal(got, next) {
+		t.Fatalf("apply did not write reviewed canonical bytes: %q", got)
+	}
+	if edits, err = Plan(o); err != nil || len(edits) != 0 {
+		t.Fatalf("paragraph-rewrite upgrade not idempotent: %v %#v", err, edits)
+	}
+}
+
 func TestUpgradeAdoptsOwnershipWhenCurrentAlreadyEqualsCanonical(t *testing.T) {
 	o := fixture(t)
 	o.Agents = []string{"codex"}
@@ -282,10 +332,12 @@ func TestUpgradeRejectsUnrepresentedOrOverlappingLocalSkillEdits(t *testing.T) {
 		local []byte
 		next  []byte
 	}{
-		"unrepresented":   {base: []byte("base\n"), local: []byte("base\nlocal-only\n"), next: []byte("base\nnew canonical guidance\n")},
-		"overlapping":     {base: []byte("base\nold guidance\n"), local: []byte("base\nlocal rewrite\n"), next: []byte("base\ncanonical rewrite\n")},
-		"deletion":        {base: []byte("base\nold guidance\n"), local: []byte("base\n"), next: []byte("base\nold guidance\nnew canonical guidance\n")},
-		"missing newline": {base: []byte("base\n"), local: []byte("base"), next: []byte("base\nnew canonical guidance\n")},
+		"unrepresented":     {base: []byte("base\n"), local: []byte("base\nlocal-only\n"), next: []byte("base\nnew canonical guidance\n")},
+		"overlapping":       {base: []byte("base\nold guidance\n"), local: []byte("base\nlocal rewrite\n"), next: []byte("base\ncanonical rewrite\n")},
+		"deletion":          {base: []byte("base\nold guidance\n"), local: []byte("base\n"), next: []byte("base\nold guidance\nnew canonical guidance\n")},
+		"reordered":         {base: []byte("alpha\nomega\n"), local: []byte("alpha\nsecond addition\nfirst addition\nomega\n"), next: []byte("new alpha\nfirst addition\nsecond addition\nnew omega\n")},
+		"borrowed baseline": {base: []byte("alpha\nguidance\nomega\n"), local: []byte("alpha\nguidance\nguidance\nomega\n"), next: []byte("new alpha\nguidance\nnew omega\n")},
+		"missing newline":   {base: []byte("base\n"), local: []byte("base"), next: []byte("base\nnew canonical guidance\n")},
 	} {
 		t.Run(name, func(t *testing.T) {
 			o := fixture(t)
