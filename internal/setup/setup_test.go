@@ -199,6 +199,98 @@ func TestReadOnlyAndUnownedSkill(t *testing.T) {
 		t.Fatal("accepted read-only instruction")
 	}
 }
+
+func TestSetupAdoptsMatchingUnownedSkillReferenceAndPreservesItOnRemoval(t *testing.T) {
+	o := fixture(t)
+	o.Agents = []string{"codex"}
+	matching := []byte("shared reference\n")
+	o.SkillFiles = map[string][]byte{"SKILL.md": []byte("test skill"), "references/ticket-comments.md": matching}
+	path := filepath.Join(o.UserHome, ".agents", "skills", "conductor-work", "references", "ticket-comments.md")
+	put(t, path, matching)
+
+	edits, err := Plan(o)
+	if err != nil {
+		t.Fatalf("matching unowned reference should be adopted: %v", err)
+	}
+	if got := get(t, path); !bytes.Equal(got, matching) {
+		t.Fatalf("preview changed matching unowned reference: %q", got)
+	}
+	var guard *Edit
+	for i := range edits {
+		if edits[i].Path == path {
+			guard = &edits[i]
+			break
+		}
+	}
+	if guard == nil || guard.Action != "verify" {
+		t.Fatalf("matching unowned reference should only be guarded: %#v", edits)
+	}
+	if err = Apply(edits); err != nil {
+		t.Fatal(err)
+	}
+	if got := get(t, path); !bytes.Equal(got, matching) {
+		t.Fatalf("apply changed matching unowned reference: %q", got)
+	}
+	if edits, err = Plan(o); err != nil || len(edits) != 0 {
+		t.Fatalf("matching reference setup not idempotent: %v %#v", err, edits)
+	}
+
+	o.Remove = true
+	edits, err = Plan(o)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = Apply(edits); err != nil {
+		t.Fatal(err)
+	}
+	if got := get(t, path); !bytes.Equal(got, matching) {
+		t.Fatalf("removal deleted pre-existing matching reference: %q", got)
+	}
+}
+
+func TestSetupRejectsDifferingUnownedSkillReference(t *testing.T) {
+	o := fixture(t)
+	o.Agents = []string{"codex"}
+	o.SkillFiles = map[string][]byte{"SKILL.md": []byte("test skill"), "references/ticket-comments.md": []byte("canonical reference\n")}
+	path := filepath.Join(o.UserHome, ".agents", "skills", "conductor-work", "references", "ticket-comments.md")
+	put(t, path, []byte("personal reference\n"))
+	if _, err := Plan(o); err == nil {
+		t.Fatal("accepted differing unowned reference")
+	}
+	if got := get(t, path); !bytes.Equal(got, []byte("personal reference\n")) {
+		t.Fatalf("preview changed differing reference: %q", got)
+	}
+}
+
+func TestSetupMatchingUnownedReferenceRetainsStaleApplyProtection(t *testing.T) {
+	o := fixture(t)
+	o.Agents = []string{"codex"}
+	matching := []byte("shared reference\n")
+	o.SkillFiles = map[string][]byte{"SKILL.md": []byte("test skill"), "references/ticket-comments.md": matching}
+	reference := filepath.Join(o.UserHome, ".agents", "skills", "conductor-work", "references", "ticket-comments.md")
+	put(t, reference, matching)
+	edits, err := Plan(o)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var guard *Edit
+	for i := range edits {
+		if edits[i].Path == reference {
+			guard = &edits[i]
+			break
+		}
+	}
+	if guard == nil || guard.Action != "verify" {
+		t.Fatalf("missing stale-apply guard for matching reference: %#v", edits)
+	}
+	put(t, reference, []byte("concurrent edit"))
+	if err = Apply(edits); err == nil || !strings.Contains(err.Error(), "preview conflict") {
+		t.Fatalf("accepted stale preview: %v", err)
+	}
+	if got := get(t, reference); !bytes.Equal(got, []byte("concurrent edit")) {
+		t.Fatalf("stale apply rewrote matching reference: %q", got)
+	}
+}
 func TestSkillSourceRequired(t *testing.T) {
 	o := fixture(t)
 	o.SkillFiles = nil

@@ -189,6 +189,10 @@ func edit(path string, b, a []byte, ownership string) Edit {
 	return Edit{path, digest(b), b, a, ownership, action, description}
 }
 
+func verify(path string, b []byte, ownership string) Edit {
+	return Edit{Path: path, BeforeHash: digest(b), Before: b, After: b, Ownership: ownership, Action: "verify", Description: "Verify unchanged pre-existing Conductor work skill"}
+}
+
 // Plan is read-only. A per-host journal is installed first so interrupted writes
 // can be repaired from the exact before/after fragments on a later invocation.
 func Plan(o Options) ([]Edit, error) {
@@ -237,6 +241,7 @@ func Plan(o Options) ([]Edit, error) {
 			return nil, e
 		}
 		var m manifest
+		guards := map[string]bool{}
 		if mb != nil {
 			if e = json.Unmarshal(mb, &m); e != nil || m.Version != 1 {
 				return nil, fmt.Errorf("invalid ownership manifest %s", mp)
@@ -272,18 +277,21 @@ func Plan(o Options) ([]Edit, error) {
 				continue
 			}
 			m = manifest{Version: 1, Executable: o.Executable, DataHome: o.DataHome, CommandAccess: o.CommandAccess}
-			if e = buildRecords(&m, o, host); e != nil {
-				return nil, e
+			adopted, err := buildRecords(&m, o, host)
+			if err != nil {
+				return nil, err
 			}
+			guards = adopted
 			after, _ := json.MarshalIndent(m, "", "  ")
 			after = append(after, '\n')
 			edits = append(edits, edit(mp, nil, after, "conductor manifest v1"))
 		}
 		if mb != nil && !o.Remove {
-			changed, err := upgradeRecords(&m, o, host)
+			changed, adopted, err := upgradeRecords(&m, o, host)
 			if err != nil {
 				return nil, err
 			}
+			guards = adopted
 			if changed {
 				after, err := json.MarshalIndent(m, "", "  ")
 				if err != nil {
@@ -398,6 +406,8 @@ func Plan(o Options) ([]Edit, error) {
 					next.Description = "Safely merge preserved Conductor skill guidance"
 				}
 				edits = append(edits, next)
+			} else if guards[r.Path] {
+				edits = append(edits, verify(r.Path, b, r.Hash))
 			}
 		}
 		if o.Remove {
@@ -435,14 +445,15 @@ func allowed(path string, o Options, host string) bool {
 	parts := strings.Split(filepath.ToSlash(rel), "/")
 	return e == nil && len(parts) > 1 && knownSkill(parts[0]) && rel != "." && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) && !filepath.IsAbs(rel)
 }
-func buildRecords(m *manifest, o Options, host string) error {
+func buildRecords(m *manifest, o Options, host string) (map[string]bool, error) {
+	adopted := map[string]bool{}
 	root := o.CodexHome
 	instruction := filepath.Join(root, "AGENTS.md")
 	if host == "codex" {
 		override := filepath.Join(root, "AGENTS.override.md")
 		b, e := read(override)
 		if e != nil {
-			return e
+			return nil, e
 		}
 		if len(b) > 0 {
 			instruction = override
@@ -453,10 +464,10 @@ func buildRecords(m *manifest, o Options, host string) error {
 	}
 	b, e := read(instruction)
 	if e != nil {
-		return e
+		return nil, e
 	}
 	if bytes.Contains(b, []byte("<!-- conductor:")) {
-		return fmt.Errorf("unowned Conductor marker: %s", instruction)
+		return nil, fmt.Errorf("unowned Conductor marker: %s", instruction)
 	}
 	block := bootstrap(o, m.CommandAccess)
 	m.Records = append(m.Records, record{Path: instruction, Kind: "append", Before: b, After: block, Hash: digest(block)})
@@ -468,19 +479,25 @@ func buildRecords(m *manifest, o Options, host string) error {
 	for _, k := range keys {
 		p, err := skillDestination(k, o, host)
 		if err != nil || !allowed(p, o, host) {
-			return fmt.Errorf("invalid skill path %q", k)
+			return nil, fmt.Errorf("invalid skill path %q", k)
 		}
 		old, e := read(p)
 		if e != nil {
-			return e
-		}
-		if old != nil {
-			return fmt.Errorf("unowned skill exists: %s", p)
+			return nil, e
 		}
 		a := o.SkillFiles[k]
-		m.Records = append(m.Records, record{Path: p, Kind: "file", After: a, Hash: digest(a)})
+		if old != nil && !bytes.Equal(old, a) {
+			return nil, fmt.Errorf("unowned skill exists: %s", p)
+		}
+		m.Records = append(m.Records, record{Path: p, Kind: "file", Before: old, After: a, Hash: digest(a)})
+		if old != nil {
+			adopted[p] = true
+		}
 	}
-	return addPermissionRecord(m, o, host)
+	if err := addPermissionRecord(m, o, host); err != nil {
+		return nil, err
+	}
+	return adopted, nil
 }
 
 func addPermissionRecord(m *manifest, o Options, host string) error {
@@ -550,6 +567,9 @@ func applyOne(e Edit) error {
 	}
 	if digest(b) != e.BeforeHash {
 		return fmt.Errorf("preview conflict: file changed")
+	}
+	if e.Action == "verify" {
+		return nil
 	}
 	if e.After == nil {
 		if b == nil {

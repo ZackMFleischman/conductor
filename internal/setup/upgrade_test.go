@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -274,6 +275,91 @@ func TestUpgradeAdoptsOwnershipWhenCurrentAlreadyEqualsCanonical(t *testing.T) {
 	}
 	if edits, err = Plan(o); err != nil || len(edits) != 0 {
 		t.Fatalf("ownership upgrade not idempotent: %v %#v", err, edits)
+	}
+}
+
+func TestUpgradeAdoptsMatchingUnownedReferenceAndGuardsStaleApply(t *testing.T) {
+	o := fixture(t)
+	o.Agents = []string{"codex"}
+	o.SkillFiles = map[string][]byte{"SKILL.md": []byte("base\n")}
+	initial, err := Plan(o)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = Apply(initial); err != nil {
+		t.Fatal(err)
+	}
+
+	matching := []byte("shared reference\n")
+	reference := filepath.Join(o.UserHome, ".agents", "skills", "conductor-work", "references", "ticket-comments.md")
+	put(t, reference, matching)
+	o.SkillFiles["references/ticket-comments.md"] = matching
+	edits, err := Plan(o)
+	if err != nil {
+		t.Fatalf("matching unowned reference should be adopted during upgrade: %v", err)
+	}
+	var guard *Edit
+	for i := range edits {
+		if edits[i].Path == reference {
+			guard = &edits[i]
+			break
+		}
+	}
+	if guard == nil || guard.Action != "verify" {
+		t.Fatalf("missing stale-apply guard for matching reference: %#v", edits)
+	}
+	if got := get(t, reference); !bytes.Equal(got, matching) {
+		t.Fatalf("preview changed matching reference: %q", got)
+	}
+	put(t, reference, []byte("concurrent edit\n"))
+	if err = Apply(edits); err == nil || !strings.Contains(err.Error(), "preview conflict") {
+		t.Fatalf("accepted stale matching reference: %v", err)
+	}
+	if got := get(t, reference); !bytes.Equal(got, []byte("concurrent edit\n")) {
+		t.Fatalf("stale apply rewrote matching reference: %q", got)
+	}
+}
+
+func TestUpgradeAdoptsMatchingUnownedReferenceAndPreservesItOnRemoval(t *testing.T) {
+	o := fixture(t)
+	o.Agents = []string{"codex"}
+	o.SkillFiles = map[string][]byte{"SKILL.md": []byte("base\n")}
+	initial, err := Plan(o)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = Apply(initial); err != nil {
+		t.Fatal(err)
+	}
+
+	matching := []byte("shared reference\n")
+	reference := filepath.Join(o.UserHome, ".agents", "skills", "conductor-work", "references", "ticket-comments.md")
+	put(t, reference, matching)
+	o.SkillFiles["references/ticket-comments.md"] = matching
+	edits, err := Plan(o)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = Apply(edits); err != nil {
+		t.Fatal(err)
+	}
+	if got := get(t, reference); !bytes.Equal(got, matching) {
+		t.Fatalf("upgrade changed matching reference: %q", got)
+	}
+	if edits, err = Plan(o); err != nil || len(edits) != 0 {
+		t.Fatalf("matching-reference upgrade not idempotent: %v %#v", err, edits)
+	}
+
+	o.Remove = true
+	edits, err = Plan(o)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = Apply(edits); err != nil {
+		t.Fatal(err)
+	}
+	if got := get(t, reference); !bytes.Equal(got, matching) {
+		t.Fatalf("removal deleted pre-existing matching reference: %q", got)
 	}
 }
 

@@ -123,11 +123,12 @@ func sameLine(a, b []byte) bool {
 
 // Persist both known old and desired bytes before changing any installed file.
 // The original Before remains intact so uninstall never restores an old skill.
-func upgradeRecords(m *manifest, o Options, host string) (bool, error) {
+func upgradeRecords(m *manifest, o Options, host string) (bool, map[string]bool, error) {
+	adopted := map[string]bool{}
 	index := map[string]int{}
 	for i, r := range m.Records {
 		if r.Hash != digest(r.After) || !allowed(r.Path, o, host) {
-			return false, fmt.Errorf("invalid owned record %s", r.Path)
+			return false, nil, fmt.Errorf("invalid owned record %s", r.Path)
 		}
 		if r.Kind == "file" {
 			index[r.Path] = i
@@ -140,28 +141,28 @@ func upgradeRecords(m *manifest, o Options, host string) (bool, error) {
 	sort.Strings(keys)
 	changed, err := upgradeBootstrap(m, o, host)
 	if err != nil {
-		return false, err
+		return false, nil, err
 	}
 	for _, key := range keys {
 		dest, err := skillDestination(key, o, host)
 		if err != nil {
-			return false, err
+			return false, nil, err
 		}
 		current, err := read(dest)
 		if err != nil {
-			return false, err
+			return false, nil, err
 		}
 		next := o.SkillFiles[key]
 		if i, ok := index[dest]; ok {
 			r := &m.Records[i]
 			preserved := preservedAddition(r.After, current, next) || (r.Previous != nil && preservedAddition(r.Previous, current, r.After))
 			if !bytes.Equal(current, r.After) && !(r.Previous != nil && bytes.Equal(current, r.Previous)) && !(current == nil && r.Before == nil) && !bytes.Equal(current, next) && !preserved {
-				return false, fmt.Errorf("owned content conflict: %s", dest)
+				return false, nil, fmt.Errorf("owned content conflict: %s", dest)
 			}
 			if !bytes.Equal(next, r.After) {
 				// Finish an interrupted earlier upgrade before introducing another version.
 				if current != nil && !bytes.Equal(current, r.After) && !bytes.Equal(current, next) && !preservedAddition(r.After, current, next) {
-					return false, fmt.Errorf("finish previous skill upgrade before upgrading again: %s", dest)
+					return false, nil, fmt.Errorf("finish previous skill upgrade before upgrading again: %s", dest)
 				}
 				r.Previous = append([]byte(nil), r.After...)
 				r.After = next
@@ -169,17 +170,20 @@ func upgradeRecords(m *manifest, o Options, host string) (bool, error) {
 				changed = true
 			}
 		} else {
-			if current != nil {
-				return false, fmt.Errorf("unowned skill exists: %s", dest)
+			if current != nil && !bytes.Equal(current, next) {
+				return false, nil, fmt.Errorf("unowned skill exists: %s", dest)
 			}
-			m.Records = append(m.Records, record{Path: dest, Kind: "file", After: next, Hash: digest(next)})
+			m.Records = append(m.Records, record{Path: dest, Kind: "file", Before: current, After: next, Hash: digest(next)})
 			index[dest] = len(m.Records) - 1
+			if current != nil {
+				adopted[dest] = true
+			}
 			changed = true
 		}
 	}
 	before := len(m.Records)
 	if err := addPermissionRecord(m, o, host); err != nil {
-		return false, err
+		return false, nil, err
 	}
-	return changed || len(m.Records) != before, nil
+	return changed || len(m.Records) != before, adopted, nil
 }
