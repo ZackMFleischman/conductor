@@ -15,4 +15,4 @@ When authorized, create/link improvement tickets under the project's persistent 
 
 Assess delivery and effectiveness separately. Link changed commits and validation to subsequent observations, including recurrence. A closed remedy is not proof of success; a recurrence requires a fresh decision rather than suppression as a duplicate. Do not claim a single successful repeat establishes permanent effectiveness.
 
-Apply [ticket comment discipline](../conductor-work/references/ticket-comments.md): retain decisions, questions, blockers, corrections and evidence; omit routine/no-op narration and read relevant history on demand.
+Apply [ticket comment discipline](../conductor-work/references/ticket-comments.md): use the shared call budget and minimal record formats; persist only necessary changes, never routine loops or unchanged observations.

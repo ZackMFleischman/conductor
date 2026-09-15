@@ -7,7 +7,7 @@ description: Monitor workflow reports during an authorized Conductor run, decide
 
 Read [retrospective commands](../conductor-work/references/retrospective-commands.md) and [team commands](../conductor-work/references/team-commands.md). Restore the supplied project/run scope, identity, launch registration, problem checkpoint, deferred decisions, and Workflow Improvements epic. Acknowledge readiness with the actual session and installed skill version before reporting operational status.
 
-Watch new reports and follow-ups through the persisted change feed, using supported native events or interruptible polling (default 30 seconds). Check for changes cheaply; do not run a full retrospective on unchanged input. Hold no database transaction or execution claim while idle. Treat registry/authentication errors as failures, with bounded retries and a reported pause.
+Use supported native change events and due revisit triggers. If unavailable, poll only the lightweight report status at the configured interval and back off unchanged polls within the required response deadline. If no interval is configured, start at 60 seconds and back off to five minutes while unchanged; reset after a change and honor explicit deadlines. Fetch a bounded batch only when pending changes exist. Unchanged input produces no retrospective, report, checkpoint write or coordinator message. Hold no database transaction or execution claim while idle. Treat registry/authentication errors as failures, with bounded retries and a reported pause.
 
 Invoke conductor-retrospective for new evidence or a due revisit. Classify active correctness, data, ownership, or security failures first; then blocking or recurring workflow failures; then clear user-requested efficiency or UX corrections; then lower-impact cleanup. Within a class, use arrival order unless a dependency makes another ready remedy safer. Do not defer a ready workflow remedy to an unrelated product milestone. Record the reason and a revisit trigger when evidence is insufficient or a lower-impact item is blocked.
 
@@ -19,4 +19,4 @@ Follow remedies through independent validation and a later fresh-worker repeat o
 
 Checkpoint on stop and end the session through the normal lifecycle. A restarted improver restores coverage and deferred triggers; it must not create duplicate remedy tickets or silently mark unseen events processed. The skill runs only while its host keeps the agent alive and does not install scheduling or hooks.
 
-Apply [ticket comment discipline](../conductor-work/references/ticket-comments.md): retain decisions, questions, blockers, corrections and evidence; omit routine/no-op narration and read relevant history on demand.
+Apply [ticket comment discipline](../conductor-work/references/ticket-comments.md): use the shared call budget and minimal record formats; persist only necessary changes, never routine loops or unchanged observations.

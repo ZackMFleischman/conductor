@@ -47,14 +47,12 @@ APP-12's declared criteria cover its implementation worktree. Its submission sum
 
 ```text
 Ticket: APP-12
-Stable agent UUID: <returned agent_id>; session UUID: <returned session_id>
-Worktree/branch/start SHA: <observed root>, <branch>, <starting SHA>
 Scope and criteria completed: parser accepts X and rejects Y; CLI prints Z.
 Tested source commits: <full commit A>, <full commit B>
-Commands and outcomes at those commits: <exact commands, pass/fail, relevant output>
+Validation: <criterion/check, outcome, tested setup, evidence link with executor provenance>
 Remaining human QA: <reproducible steps and expected observations>
 Delivery: direct landing per project preference; or optional PR <URL> containing APP-12 and APP-13.
-Integration handoff: validate these source commits together in APP-14 after landing.
+Next action: <remaining integration/QA action and owner, only if needed>
 ```
 
 PRs are optional, may group multiple coherent tickets, and do not determine ticket state. Read the project's delivery preference; do not infer merge permission from assignment. Implementation acceptance can cover tested worktree commits when its criteria say so.

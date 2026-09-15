@@ -1,6 +1,6 @@
 # Workflow commands (schema v3)
 
-All commands below run after the installed executable, optional `--home PATH`, and project selection. Add `--json`. Commands write transactionally with a unique `--request KEY`; identical replay returns the original result. Body files are UTF-8 JSON, bounded to 256 KiB. Ticket IDs accept UUIDs or display keys. Refresh `ticket show ID` before every revision-checked mutation.
+All commands below run after the installed executable, optional `--home PATH`, and project selection. Add `--json`. Commands write transactionally with a unique `--request KEY`; identical replay returns the original result. Body files are UTF-8 JSON, bounded to 256 KiB. Ticket IDs accept UUIDs or display keys. Use the latest revision returned by a successful operation. Read `ticket show ID` when that revision is missing, an external change is signaled, or a conflict requires reconciliation.
 
 Projects opt in explicitly. Ordinary new tickets work without planning policy; migrated legacy tickets keep human acceptance. Opting in does not retroactively change existing tickets. New tickets inherit policy snapshots and start in `draft`. Changing project defaults does not rewrite inherited ticket policies. Only explicit local human configuration can change core policy; a worker session cannot weaken its gates.
 

@@ -1,6 +1,6 @@
 # Foundation ticket commands
 
-These commands require project registration, not planning policy or a managed team. Prefix them with the installed `conductor` executable and its configured `--home PATH`; append `--json`. Start a live session under a stable agent identity, retain request keys for retries, and refresh revisions before changing state.
+These commands require project registration, not planning policy or a managed team. Prefix them with the installed `conductor` executable and its configured `--home PATH`; append `--json`. Start a live session under a stable agent identity, retain request keys for retries, and retain returned revisions; refresh for missing state, external changes or conflicts.
 
 ```text
 ticket create --title "Fix the import error" --body-file description.md --session S --request create-1
