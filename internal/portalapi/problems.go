@@ -36,10 +36,10 @@ type ProblemReader interface {
 }
 
 func readProblems(ctx context.Context, tx *sql.Tx, project string) ([]ProblemSummary, error) {
-	rows, err := tx.QueryContext(ctx, `SELECT p.id,p.display_key,p.summary,COALESCE(t.display_key,''),p.created_at,COALESCE(MAX(e.created_at),p.created_at),COUNT(e.id)
+	rows, err := tx.QueryContext(ctx, `SELECT p.id,p.display_key,p.summary,COALESCE(t.display_key,''),p.created_at,COALESCE(e.updated_at,p.created_at),COALESCE(e.note_count,0)
  FROM problems p LEFT JOIN tickets t ON t.id=p.ticket_id AND t.project_id=p.project_id
- LEFT JOIN events e ON e.problem_id=p.id AND e.project_id=p.project_id AND e.kind='problem.append'
- WHERE p.project_id=? GROUP BY p.id ORDER BY p.created_at DESC,p.rowid DESC`, project)
+ LEFT JOIN (SELECT problem_id,MAX(created_at) AS updated_at,COUNT(*) AS note_count FROM events WHERE project_id=? AND kind='problem.append' GROUP BY problem_id) e ON e.problem_id=p.id
+ WHERE p.project_id=? ORDER BY p.created_at DESC,p.rowid DESC`, project, project)
 	if err != nil {
 		return nil, err
 	}

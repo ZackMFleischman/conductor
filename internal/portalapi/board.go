@@ -166,13 +166,14 @@ func readBoardTickets(ctx context.Context, tx *sql.Tx, projectID string) (map[st
 		m.project_id,m.spec_revision,m.parent_id,m.blocked_reason,
 		a.project_id,a.name,s.project_id,s.prepared_revision,s.authorized_revision,s.paused,
 		COALESCE(m.kind,'implementation'),t.summary,t.evidence,t.qa,t.created_at,t.updated_at,
-		CASE WHEN t.state='done' THEN COALESCE((SELECT e.created_at FROM events e WHERE e.project_id=t.project_id AND e.ticket_id=t.id AND e.kind='ticket.accept' ORDER BY e.seq DESC LIMIT 1),t.updated_at) ELSE '' END,
+		CASE WHEN t.state='done' THEN COALESCE(accepted.created_at,t.updated_at) ELSE '' END,
 		COALESCE(notes.comment_count,0)
 		FROM tickets t
 		LEFT JOIN ticket_metadata m ON m.ticket_id=t.id
 		LEFT JOIN agents a ON a.id=t.assigned_agent_id
 		LEFT JOIN workflow_ticket_specs s ON s.ticket_id=t.id
-		LEFT JOIN (SELECT ticket_id,COUNT(*) AS comment_count FROM events WHERE project_id=? AND kind='ticket.note' GROUP BY ticket_id) notes ON notes.ticket_id=t.id
+		LEFT JOIN (SELECT ticket_id,COUNT(CASE WHEN kind='ticket.note' THEN 1 END) AS comment_count,MAX(CASE WHEN kind='ticket.accept' THEN seq END) AS accept_seq FROM events WHERE project_id=? AND kind IN ('ticket.note','ticket.accept') GROUP BY ticket_id) notes ON notes.ticket_id=t.id
+		LEFT JOIN events accepted ON accepted.seq=notes.accept_seq
 		WHERE t.project_id=? ORDER BY t.created_at,t.id`, projectID, projectID)
 	if err != nil {
 		return nil, nil, err
