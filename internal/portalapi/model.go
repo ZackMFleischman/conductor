@@ -34,22 +34,23 @@ type Blocker struct {
 	TicketKey string `json:"ticketKey,omitempty"`
 }
 type Ticket struct {
-	Attachments []Attachment `json:"attachments"`
-	ID          string       `json:"id"`
-	Key         string       `json:"key"`
-	Title       string       `json:"title"`
-	Description string       `json:"description"`
-	Kind        string       `json:"kind"`
-	Summary     string       `json:"summary"`
-	Evidence    string       `json:"evidence"`
-	QA          string       `json:"qa"`
-	CreatedAt   string       `json:"createdAt"`
-	UpdatedAt   string       `json:"updatedAt"`
-	CompletedAt string       `json:"completedAt,omitempty"`
-	Status      string       `json:"status"`
-	Assignee    *Assignee    `json:"assignee"`
-	Ancestors   []Reference  `json:"ancestors"`
-	Blockers    []Blocker    `json:"blockers"`
+	Attachments  []Attachment `json:"attachments"`
+	ID           string       `json:"id"`
+	Key          string       `json:"key"`
+	Title        string       `json:"title"`
+	Description  string       `json:"description"`
+	Kind         string       `json:"kind"`
+	Summary      string       `json:"summary"`
+	Evidence     string       `json:"evidence"`
+	QA           string       `json:"qa"`
+	CreatedAt    string       `json:"createdAt"`
+	UpdatedAt    string       `json:"updatedAt"`
+	CompletedAt  string       `json:"completedAt,omitempty"`
+	CommentCount int          `json:"commentCount"`
+	Status       string       `json:"status"`
+	Assignee     *Assignee    `json:"assignee"`
+	Ancestors    []Reference  `json:"ancestors"`
+	Blockers     []Blocker    `json:"blockers"`
 }
 type Board struct {
 	Problems []ProblemSummary `json:"problems"`

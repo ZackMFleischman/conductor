@@ -10,6 +10,16 @@ export const liveSnapshot = (projectId = 'project-a', title = 'Child') => ({
 });
 
 describe('live JSON decoding', () => {
+  it('keeps valid comment counts and accepts older snapshots without counts', () => {
+    const value = liveSnapshot();
+    Object.assign(value.tickets[0], { commentCount: 3 });
+    expect(decodeBoard(value, 'project-a').tickets[0].commentCount).toBe(3);
+    expect(decodeBoard(value, 'project-a').tickets[1].commentCount).toBeUndefined();
+    for (const commentCount of [-1, 1.5, '3', null]) {
+      Object.assign(value.tickets[0], { commentCount });
+      expect(() => decodeBoard(value, 'project-a')).toThrow();
+    }
+  });
   it('accepts a complete snapshot including null assignment and opaque revision', () => {
     expect(decodeBoard(liveSnapshot(), 'project-a').tickets[0].assignee).toBeNull();
     expect(decodeBoard(liveSnapshot(), 'project-a').revision).toBe('opaque:1');

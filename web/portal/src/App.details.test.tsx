@@ -1,6 +1,6 @@
 import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { expect, it } from 'vitest';
+import { expect, it, vi } from 'vitest';
 import { App } from './App';
 import type { BoardSnapshot, BoardSource } from './board';
 import { HighlightedText } from './components/HighlightedText';
@@ -11,6 +11,25 @@ it('highlights complete phrases across ticket references', () => {
 });
 
 const snapshot = (count = 45): BoardSnapshot => ({ project: { id: 'p', name: 'Project', description: '' }, tickets: Array.from({ length: count }, (_, i) => ({ id: String(i), key: `P-${i + 1}`, title: `Ticket ${i + 1}`, description: i === 0 ? 'See P-45 and **important details**.' : 'Description', status: 'done', assignee: null, ancestors: [], blockers: [], kind: 'bug', summary: 'Delivered summary' })) });
+
+it('shows live comment counts on cards and collapsed details without fetching history', async () => {
+  const user = userEvent.setup();
+  let board = snapshot(2);
+  board.tickets = board.tickets.map((ticket, i) => ({ ...ticket, commentCount: i ? 0 : 3 }));
+  let refresh = () => {};
+  const loadTicketNotes = vi.fn();
+  render(<App source={{ kind: 'live', load: async () => board, loadTicketNotes, subscribe: change => { refresh = change; return () => {}; } }} />);
+  const card = await screen.findByRole('article', { name: 'Ticket 1' });
+  expect(within(card).getByText('3 comments')).toBeInTheDocument();
+  expect(within(screen.getByRole('article', { name: 'Ticket 2' })).queryByText(/comments?/)).not.toBeInTheDocument();
+  await user.click(within(card).getByRole('heading'));
+  expect(within(screen.getByRole('dialog')).getByRole('button', { name: 'Comments (3)' })).toHaveAttribute('aria-expanded', 'false');
+  board = { ...board, tickets: board.tickets.map((ticket, i) => ({ ...ticket, commentCount: i ? 0 : 4 })) };
+  await act(async () => refresh());
+  expect(within(screen.getByRole('dialog')).getByRole('button', { name: 'Comments (4)' })).toBeInTheDocument();
+  expect(within(card).getByText('4 comments')).toBeInTheDocument();
+  expect(loadTicketNotes).not.toHaveBeenCalled();
+});
 
 it('caps Done at20, expands by20, shows all, and keeps the total count', async () => {
   const user = userEvent.setup();

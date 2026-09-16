@@ -39,7 +39,7 @@ export function TicketDetails({ ticket, tickets = [], problems = [], source, sel
           {(ticket.evidence || ticket.qa) && <Box key={`notes-${ticket.id}`}>
             {([['Evidence', ticket.evidence], ['QA notes', ticket.qa]] as const).map(([label, text]) => text && <Accordion key={label} disableGutters elevation={0} sx={{ borderTop: '1px solid', borderColor: 'divider', '&:before': { display: 'none' } }}><AccordionSummary expandIcon={<ExpandMore />} sx={{ px: 0, minHeight: 44 }}><Typography component="h3" sx={{ ...sectionTitle, mb: 0 }}>{label}</Typography></AccordionSummary><AccordionDetails sx={{ px: 0, '& .MuiTypography-body2': { fontSize: '0.86rem', lineHeight: 1.65 } }}><TicketDescription text={text} query="" full hideImages /></AccordionDetails></Accordion>)}
           </Box>}
-          {loadComments && <TicketComments ticketId={ticket.id} updatedAt={ticket.updatedAt} loadPage={loadComments} />}
+          {loadComments && <TicketComments ticketId={ticket.id} updatedAt={ticket.updatedAt} commentCount={ticket.commentCount} loadPage={loadComments} />}
         </Stack>
         <Stack component="aside" aria-label="Ticket context" spacing={2.5} sx={{ p: 2.5, bgcolor: '#f7f8fa', borderLeft: { sm: '1px solid' }, borderColor: { sm: 'divider' }, minWidth: 0, gridColumn: { sm: 2 } }}>
           <Box><Typography component="h3" sx={sectionTitle}>Owner</Typography><Typography variant="body2" sx={{ overflowWrap: 'anywhere' }}>{ticket.assignee?.name ?? 'Unassigned'}</Typography></Box>

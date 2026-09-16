@@ -166,7 +166,8 @@ func readBoardTickets(ctx context.Context, tx *sql.Tx, projectID string) (map[st
 		m.project_id,m.spec_revision,m.parent_id,m.blocked_reason,
 		a.project_id,a.name,s.project_id,s.prepared_revision,s.authorized_revision,s.paused,
 		COALESCE(m.kind,'implementation'),t.summary,t.evidence,t.qa,t.created_at,t.updated_at,
-		CASE WHEN t.state='done' THEN COALESCE((SELECT e.created_at FROM events e WHERE e.project_id=t.project_id AND e.ticket_id=t.id AND e.kind='ticket.accept' ORDER BY e.seq DESC LIMIT 1),t.updated_at) ELSE '' END
+		CASE WHEN t.state='done' THEN COALESCE((SELECT e.created_at FROM events e WHERE e.project_id=t.project_id AND e.ticket_id=t.id AND e.kind='ticket.accept' ORDER BY e.seq DESC LIMIT 1),t.updated_at) ELSE '' END,
+		(SELECT COUNT(*) FROM events e WHERE e.project_id=t.project_id AND e.ticket_id=t.id AND e.kind='ticket.note')
 		FROM tickets t
 		LEFT JOIN ticket_metadata m ON m.ticket_id=t.id
 		LEFT JOIN agents a ON a.id=t.assigned_agent_id
@@ -184,7 +185,7 @@ func readBoardTickets(ctx context.Context, tx *sql.Tx, projectID string) (map[st
 		var specRevision, prepared, authorized, paused sql.NullInt64
 		if err = rows.Scan(&v.ticket.ID, &v.ticket.Key, &v.ticket.Title, &v.ticket.Description, &v.ticket.Status, &assignment,
 			&metadataProject, &specRevision, &v.parent, &blockedReason, &agentProject, &agentName, &policyProject, &prepared, &authorized, &paused,
-			&v.ticket.Kind, &v.ticket.Summary, &v.ticket.Evidence, &v.ticket.QA, &v.ticket.CreatedAt, &v.ticket.UpdatedAt, &v.ticket.CompletedAt); err != nil {
+			&v.ticket.Kind, &v.ticket.Summary, &v.ticket.Evidence, &v.ticket.QA, &v.ticket.CreatedAt, &v.ticket.UpdatedAt, &v.ticket.CompletedAt, &v.ticket.CommentCount); err != nil {
 			return nil, nil, err
 		}
 		if !metadataProject.Valid || metadataProject.String != projectID || !specRevision.Valid || specRevision.Int64 < 1 || !blockedReason.Valid {

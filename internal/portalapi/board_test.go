@@ -65,6 +65,32 @@ func readBoard(t *testing.T, reader DBReader, project string) Board {
 	return b
 }
 
+func TestBoardCommentCountsAreScopedAndExcludeStateEvents(t *testing.T) {
+	f := newBoardFixture(t)
+	f.project(t, "p", "P")
+	f.project(t, "other", "OTHER")
+	f.ticket(t, "one", "p", "ready")
+	f.ticket(t, "empty", "p", "ready")
+	f.ticket(t, "foreign", "other", "ready")
+	boardExec(t, f.writer, `INSERT INTO events(id,project_id,ticket_id,actor_id,kind,created_at) VALUES
+		('note1','p','one','agent','ticket.note','now'),
+		('note2','p','one','agent','ticket.note','now'),
+		('state','p','one','agent','ticket.claim','now'),
+		('foreign','other','foreign','agent','ticket.note','now')`)
+	b := readBoard(t, f.reader, "p")
+	if got := findBoardTicket(t, b, "one").CommentCount; got != 2 {
+		t.Fatalf("comment count = %d, want 2", got)
+	}
+	if got := findBoardTicket(t, b, "empty").CommentCount; got != 0 {
+		t.Fatalf("empty count = %d", got)
+	}
+	boardExec(t, f.writer, `INSERT INTO events(id,project_id,ticket_id,actor_id,kind,created_at) VALUES('note3','p','one','agent','ticket.note','now')`)
+	after := readBoard(t, f.reader, "p")
+	if findBoardTicket(t, after, "one").CommentCount != 3 || after.Revision == b.Revision {
+		t.Fatal("new comment did not update snapshot and revision")
+	}
+}
+
 func TestBoardIncludesStoredDetails(t *testing.T) {
 	f := newBoardFixture(t)
 	f.project(t, "p", "P")

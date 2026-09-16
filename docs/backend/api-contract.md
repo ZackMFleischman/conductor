@@ -36,6 +36,8 @@ An unfinished prerequisite produces `{reason:"Waiting for KEY: title",ticketKey:
 
 ## Workflow reports and ticket comments
 
+Each ticket includes `commentCount`, the count of explicit `ticket.note` events scoped to that project and ticket. Cards show positive counts and the collapsed Comments control shows the count without fetching history. Counts refresh with the board snapshot; comment bodies remain on-demand. Older snapshots may omit the field.
+
 The board includes lightweight `problems` summaries with `id`, `key`, `summary`, optional related `ticketKey`, `createdAt`, `updatedAt`, and `noteCount`, newest reported first. Reports appear in a separate Problems tab; they do not introduce a ticket state or an inferred open/resolved status. Search covers the summary, key and related ticket. Report changes participate in board revision and the session activity feed.
 
 `GET /api/v1/projects/{project}/problems/{problem}` loads a report's expected behavior, actual behavior, correction, evidence, reporter and chronological append history on demand. Problem and ticket references open their corresponding detail dialogs. Unknown or cross-project report IDs return 404.

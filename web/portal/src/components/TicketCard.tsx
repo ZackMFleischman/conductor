@@ -1,6 +1,7 @@
 import { Avatar, Box, Button, Chip, Paper, Stack, Typography } from '@mui/material';
 import LockOutlined from '@mui/icons-material/LockOutlined';
 import PersonOutlined from '@mui/icons-material/PersonOutlined';
+import ChatBubbleOutlined from '@mui/icons-material/ChatBubbleOutlined';
 import { GroupLabel } from './GroupLabel';
 import { HighlightedText } from './HighlightedText';
 import { TicketDescription } from './TicketDescription';
@@ -53,6 +54,9 @@ export function TicketCard({ ticket, query, onGroupFilter, onOpen, updated = fal
       <Typography variant="caption" title={ticket.assignee?.name ?? 'Unassigned'} color="text.secondary" sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 'calc(100% - 24px)' }}><HighlightedText text={ticket.assignee?.name ?? 'Unassigned'} query={query} /></Typography>
       <GroupLabel ticket={ticket} onFilter={onGroupFilter} />
     </Stack>
-    {(ticket.summary || ticket.evidence || ticket.qa) && <Button size="small" onClick={() => onOpen?.(ticket.key)} sx={{ p: 0, mt: 0.5, minWidth: 0, fontSize: '0.66rem' }}>View delivery notes</Button>}
+    <Stack direction="row" sx={{ alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}>
+      {(ticket.summary || ticket.evidence || ticket.qa) && <Button size="small" onClick={() => onOpen?.(ticket.key)} sx={{ p: 0, mt: 0.5, minWidth: 0, fontSize: '0.66rem' }}>View delivery notes</Button>}
+      {!!ticket.commentCount && <Typography variant="caption" color="text.secondary" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5, mt: 0.5 }}><ChatBubbleOutlined sx={{ fontSize: 13 }} />{ticket.commentCount} {ticket.commentCount === 1 ? 'comment' : 'comments'}</Typography>}
+    </Stack>
   </Paper>;
 }

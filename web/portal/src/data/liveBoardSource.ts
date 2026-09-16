@@ -16,6 +16,10 @@ function array(value: unknown): unknown[] {
   if (!Array.isArray(value)) throw invalid();
   return value;
 }
+function commentCount(value: unknown): number {
+  if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 0) throw invalid();
+  return value;
+}
 function project(value: unknown): Project {
   const p = object(value);
   return { id: text(p.id, true), name: text(p.name, true), description: text(p.description) };
@@ -56,6 +60,7 @@ export function decodeBoard(value: unknown, projectId: string): LiveSnapshot {
         return { id: text(a.id, true), name: text(a.name, true), url: text(a.url, true), mediaType: text(a.mediaType, true), size: a.size, ...(a.modifiedAt === undefined ? {} : { modifiedAt: text(a.modifiedAt) }) };
       }),
       ...Object.fromEntries(['kind', 'summary', 'evidence', 'qa', 'createdAt', 'updatedAt', 'completedAt'].filter(key => t[key] !== undefined).map(key => [key, text(t[key])])),
+      ...(t.commentCount === undefined ? {} : { commentCount: commentCount(t.commentCount) }),
       assignee: owner === null ? null : { id: text(owner.id, true), name: text(owner.name, true) },
       blockers: array(t.blockers).map(value => {
         const b = object(value);

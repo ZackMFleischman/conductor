@@ -18,6 +18,7 @@ export interface BoardTicket {
   createdAt?: string;
   updatedAt?: string;
   completedAt?: string;
+  commentCount?: number;
   status: TicketStatus;
   assignee: Assignee | null;
   blockers: Blocker[];

@@ -5,14 +5,14 @@ import ChatBubbleOutline from '@mui/icons-material/ChatBubbleOutlined';
 import type { TicketNotesLoader, TicketNotesPage } from '../data/ticketNotes';
 import { TicketDescription } from './TicketDescription';
 
-type Props = { ticketId: string; updatedAt?: string; loadPage: TicketNotesLoader };
+type Props = { ticketId: string; updatedAt?: string; commentCount?: number; loadPage: TicketNotesLoader };
 
 // Identity boundaries also reset expansion and cancel a pending previous ticket read.
 export function TicketComments(props: Props) {
  return <Comments key={props.ticketId} {...props} />;
 }
 
-function Comments({ ticketId, updatedAt, loadPage }: Props) {
+function Comments({ ticketId, updatedAt, commentCount, loadPage }: Props) {
  const id = useId();
  const [expanded, setExpanded] = useState(false);
  const [page, setPage] = useState<TicketNotesPage | null>(null);
@@ -40,11 +40,13 @@ function Comments({ ticketId, updatedAt, loadPage }: Props) {
  useEffect(() => {
   if (expanded) void load();
   return () => request.current?.abort();
- }, [expanded, load, updatedAt]);
+ }, [expanded, load, updatedAt, commentCount]);
+
+ const total = commentCount ?? page?.total;
 
  return <Box component="section" sx={{ mt: 3 }}>
   <Button ref={toggle} aria-expanded={expanded} aria-controls={id} onClick={() => setExpanded(value => !value)} startIcon={<ChatBubbleOutline />} endIcon={<ExpandMore sx={{ transform: expanded ? 'rotate(180deg)' : undefined }} />} sx={{ px: 0, color: 'text.primary', fontWeight: 700 }}>
-   Comments{page ? ` (${page.total})` : ''}
+   Comments{total !== undefined ? ` (${total})` : ''}
   </Button>
   <Collapse in={expanded}>
    <Box id={id} aria-busy={busy} sx={{ pt: 1 }}>
